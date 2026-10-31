@@ -55,9 +55,13 @@ export const actionSchema = z.object({
     "choice",
     "clue",
     "call",
+    /** 解锁一条“待玩家点击推进”的剧情台词或素材 */
+    "reveal",
   ]),
   key: z.string(),
   value: z.union([z.string(), z.number(), z.boolean()]),
+  /** reveal 专用：操作哪条内容（默认 key） */
+  targetId: z.string().optional(),
 });
 export type Action = z.infer<typeof actionSchema>;
 export const nodeSchema = z.object({

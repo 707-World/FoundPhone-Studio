@@ -29,6 +29,7 @@ import type { SkinProps } from "../../AppSkins";
 import { Avatar, Media } from "../../skins/shared";
 import { useSkinState } from "../../skinState";
 import { makeItem, type Item } from "../../schema";
+import { testCondition, visible } from "../../engine";
 import {
   IG_BUZZ_NAMES,
   IG_COMMENT_MEDIA,
@@ -57,6 +58,32 @@ export function messageRun(items: Item[], index: number) {
 }
 const read = (p: SkinProps, i: Item) =>
   p.creator || i.password ? p.onItem(i) : p.onRead(i.id);
+/**
+ * 这个会话里“已经开始、但还没被玩家点出来”的剧情台词数量。
+ * 台词 id 形如 kkt-b2-3 / ig-dm3-7：同一段共用前缀，段内首句由段落变量解锁，
+ * 其后每一句都等上一句出现。所以只统计“首句已解锁”的那一组里还没出现的句子，
+ * 后面的段落还没开始就不会被算进来。
+ */
+function pendingLines(
+  p: SkinProps,
+  inThread: (i: Item) => boolean,
+) {
+  const all = p.allItems ?? p.items;
+  const groups = new Map<string, Item[]>();
+  for (const i of all) {
+    if (!i.unlock || !inThread(i)) continue;
+    const key = i.id.replace(/-\d+$/, "");
+    groups.set(key, [...(groups.get(key) ?? []), i]);
+  }
+  let n = 0;
+  for (const lines of groups.values()) {
+    const first = lines[0];
+    if (!testCondition({ key: first.unlock, op: "eq", value: true }, p.state))
+      continue;
+    n += lines.filter((i) => !visible(i, p.state)).length;
+  }
+  return n;
+}
 /** 从内容池中随机抽取若干条，保证同一批内不重复 */
 function pickSome<T>(pool: T[], count: number): T[] {
   const bag = [...pool];
@@ -106,9 +133,15 @@ export function MymyKakao(p: SkinProps) {
   const day = p.items[0]?.time.slice(0, 10) || "";
   const stamp = (t: string) =>
     /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t) ? t : (day + " " + t).trim();
-  const list = grouped(p.items.filter((i) => i.meta.request !== "true")),
-    requests = p.items.filter(
-      (i) => i.meta.request === "true" && !declined.includes(i.id),
+  const requests = p.items.filter(
+    (i) => i.meta.request === "true" && !declined.includes(i.id),
+  );
+  /** 好友申请还没处理完时，Kakao 里看不到 Juyeon 的聊天框 */
+  const hiddenThread = new Set(requests.length ? ["Juyeon", "好友申请"] : []);
+  const list = grouped(
+      p.items.filter(
+        (i) => i.meta.request !== "true" && !hiddenThread.has(i.title),
+      ),
     ),
     messages = [
       ...p.items.filter((i) => i.title === p.thread),
@@ -143,6 +176,8 @@ export function MymyKakao(p: SkinProps) {
       if (x !== y) return x < y ? -1 : 1;
       return a.meta.local === "true" ? 1 : -1;
     }),
+    /** 当前会话里还没被玩家点出来的剧情台词数量：>0 时输入栏变成“点击继续” */
+    pending = pendingLines(p, (i) => i.title === p.thread),
     scroll = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = scroll.current;
@@ -170,6 +205,9 @@ export function MymyKakao(p: SkinProps) {
           <div className="msgs kk" ref={scroll}>
             {messages.map((m, i) => {
               const run = messageRun(messages, i);
+              const dayLabel = stamp(m.time).slice(0, 10),
+                previousDay =
+                  i > 0 ? stamp(messages[i - 1].time).slice(0, 10) : "";
               if (m.meta.contact === "true")
                 return (
                   <p className="kzsys" key={m.id}>
@@ -177,43 +215,59 @@ export function MymyKakao(p: SkinProps) {
                   </p>
                 );
               return (
-                <div
-                  key={m.id}
-                  className={
-                    "kzm " +
-                    (m.outgoing ? "kzmy" : "kzot") +
-                    (run.first ? " first" : "")
-                  }
-                >
-                  {!m.outgoing && run.first && (
-                    <>
-                      <div className="kzmav">
-                        <Avatar name={m.sender} src={m.avatar} />
-                      </div>
-                      <div className="kzmn">{m.sender}</div>
-                    </>
+                <>
+                  {dayLabel !== previousDay && (
+                    <p className="kzday" key={"day-" + m.id}>
+                      {dayLabel}
+                    </p>
                   )}
-                  {m.outgoing && run.last && (
-                    <span className="kzt">
-                      {m.meta.unread || ""}
-                      <br />
-                      {m.time.slice(-5)}
-                    </span>
-                  )}
-                  <button
-                    className={"kzbub" + (m.media ? " kzimg" : "")}
-                    onClick={() => m.meta.local !== "true" && read(p, m)}
+                  <div
+                    key={m.id}
+                    className={
+                      "kzm " +
+                      (m.outgoing ? "kzmy" : "kzot") +
+                      (run.first ? " first" : "")
+                    }
                   >
-                    {m.media ? <Media item={m} /> : m.body}
-                  </button>
-                  {!m.outgoing && run.last && (
-                    <span className="kzt">{m.time.slice(-5)}</span>
-                  )}
-                </div>
+                    {!m.outgoing && run.first && (
+                      <>
+                        <div className="kzmav">
+                          <Avatar name={m.sender} src={m.avatar} />
+                        </div>
+                        <div className="kzmn">{m.sender}</div>
+                      </>
+                    )}
+                    {m.outgoing && run.last && (
+                      <span className="kzt">
+                        {m.meta.unread || ""}
+                        <br />
+                        {m.time.slice(-5)}
+                      </span>
+                    )}
+                    <button
+                      className={"kzbub" + (m.media ? " kzimg" : "")}
+                      onClick={() => m.meta.local !== "true" && read(p, m)}
+                    >
+                      {m.media ? <Media item={m} /> : m.body}
+                    </button>
+                    {!m.outgoing && run.last && (
+                      <span className="kzt">{m.time.slice(-5)}</span>
+                    )}
+                  </div>
+                </>
               );
             })}
             {!messages.length && <Blank />}
           </div>
+          {pending > 0 && (
+            <button
+              className="mymy-tap"
+              aria-label="点击继续剧情"
+              onClick={() => p.onEvent?.("tap", p.thread)}
+            >
+              轻触屏幕继续 · {pending}
+            </button>
+          )}
           <form
             className="kzinp"
             onSubmit={(e) => {
@@ -241,16 +295,23 @@ export function MymyKakao(p: SkinProps) {
             </button>
             <input
               aria-label="KKT消息"
-              placeholder="输入消息"
-              value={draft}
+              placeholder={pending ? "点击输入栏继续剧情" : "输入消息"}
+              value={pending ? "" : draft}
               maxLength={2000}
+              readOnly={pending > 0}
+              onFocus={() => {
+                if (pending) p.onEvent?.("tap", p.thread);
+              }}
+              onClick={() => {
+                if (pending) p.onEvent?.("tap", p.thread);
+              }}
               onChange={(e) => setDraft(e.target.value)}
             />
             <Smile size={22} />
             <button
               className={draft.trim() ? "go" : ""}
               aria-label="发送KKT消息"
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || pending > 0}
             >
               ↑
             </button>
@@ -318,6 +379,9 @@ export function MymyKakao(p: SkinProps) {
                   onClick={() => setTab(t)}
                 >
                   {t}
+                  {t === "好友" && requests.length > 0 && (
+                    <i className="mymy-dot" aria-label="有新的好友申请" />
+                  )}
                 </button>
               ))}
             </div>
@@ -595,6 +659,10 @@ export function MymyInstagram(p: SkinProps) {
         }),
       ]
     : [];
+  /** 这条私信会话里还没被玩家点出来的剧情台词数量 */
+  const dmPending = dm
+    ? pendingLines(p, (i) => i.folder === "私信" && i.title === dm)
+    : 0;
   const toggle = (id: string, values: string[], set: (v: string[]) => void) =>
     set(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
   const like = (i: Item, on: boolean) => {
@@ -835,6 +903,15 @@ export function MymyInstagram(p: SkinProps) {
                     ))}
                     {!dmMessages.length && <Blank />}
                   </div>
+                  {dmPending > 0 && (
+                    <button
+                      className="mymy-tap"
+                      aria-label="点击继续私信剧情"
+                      onClick={() => p.onEvent?.("tap", dm)}
+                    >
+                      轻触屏幕继续 · {dmPending}
+                    </button>
+                  )}
                   <form
                     className="igdmi"
                     onSubmit={(e) => {
@@ -855,12 +932,22 @@ export function MymyInstagram(p: SkinProps) {
                   >
                     <input
                       aria-label="私信内容"
-                      value={draft}
+                      value={dmPending ? "" : draft}
                       maxLength={2000}
-                      placeholder="发消息…"
+                      readOnly={dmPending > 0}
+                      placeholder={dmPending ? "点击输入栏继续剧情" : "发消息…"}
+                      onFocus={() => {
+                        if (dmPending) p.onEvent?.("tap", dm);
+                      }}
+                      onClick={() => {
+                        if (dmPending) p.onEvent?.("tap", dm);
+                      }}
                       onChange={(e) => setDraft(e.target.value)}
                     />
-                    <button aria-label="发送私信" disabled={!draft.trim()}>
+                    <button
+                      aria-label="发送私信"
+                      disabled={!draft.trim() || dmPending > 0}
+                    >
                       发送
                     </button>
                   </form>

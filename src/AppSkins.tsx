@@ -31,15 +31,19 @@ import {
   Layers,
   ShoppingBag,
 } from "lucide-react";
-import { safeMedia, type Item, type UiValue } from "./schema";
+import { safeMedia, type Item, type Runtime, type UiValue } from "./schema";
 export type SkinProps = {
   ui?: Record<string, UiValue>;
   onUi?: (key: string, value: UiValue) => void;
   appId?: string;
   owner?: string;
   virtualTime?: string;
+  /** 当前运行时状态，皮肤可用它判断剧情是否已推进 */
+  state: Runtime;
   name: string;
   items: Item[];
+  /** 未过滤的完整内容（含尚未解锁的剧情台词），皮肤用它判断还剩几句没点出来 */
+  allItems?: Item[];
   creator: boolean;
   onRead: (id: string) => void;
   onItem: (i: Item) => void;

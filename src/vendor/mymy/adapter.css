@@ -830,3 +830,45 @@
   font-size: 12px;
   text-align: center;
 }
+/* 剧情台词：点一下出下一句 */
+.mymy-tap {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 2px 14px 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #fff6cf;
+  color: #7a5c00;
+  font-size: 13px;
+  text-align: center;
+  animation: mymy-tap-pulse 1.8s ease-in-out infinite;
+}
+@keyframes mymy-tap-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.mymy-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: #ff3b30;
+  vertical-align: middle;
+}
+.mymy-ui .kzday {
+  margin: 10px auto 6px;
+  padding: 4px 12px;
+  border-radius: 11px;
+  background: #f3f3f5;
+  color: #8a8a92;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  width: fit-content;
+}

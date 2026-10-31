@@ -30,7 +30,16 @@ export function testCondition(c: Condition, s: Runtime): boolean {
   }
 }
 function apply(a: Action, s: Runtime, w: Work) {
+  const contentId = a.targetId || a.key;
   switch (a.type) {
+    case "reveal":
+      // 剧情台词逐条解锁：台词本身解锁后才能被玩家看到
+      if (a.value === false || a.value === "false") {
+        s.unlocked = s.unlocked.filter((x) => x !== contentId);
+      } else if (!s.unlocked.includes(contentId)) {
+        s.unlocked.push(contentId);
+      }
+      break;
     case "date":
       if (/^\d{4}-\d{2}-\d{2}$/.test(String(a.value))) s.date = String(a.value);
       break;
@@ -88,6 +97,8 @@ function runQueue(
   target: string,
   queue: string[],
   resuming = new Set<string>(),
+  _trigger = event,
+  at?: number,
 ) {
   const seen = new Set<string>();
   let steps = 0;
@@ -109,7 +120,7 @@ function runQueue(
       if (!s.scheduled.some((t) => t.nodeId === id))
         s.scheduled.push({
           nodeId: id,
-          due: (s.elapsedMs ?? 0) + (n.delayMs ?? 1000),
+          due: (at ?? s.elapsedMs ?? 0) + (n.delayMs ?? 1000),
         });
       s.trace.push(`delay:${n.delayMs ?? 1000}ms → ${n.label}`);
       continue;
@@ -172,14 +183,55 @@ export function dispatch(
     s.visited.push(target);
   if (event === "read" && !s.read.includes(target)) s.read.push(target);
   if (w.mode === "explore") return s;
-  const queue = w.nodes
+  let ids = w.nodes
     .filter(
       (n) =>
         (n.type === "start" && event === "start") ||
         (n.event === event && (!n.target || n.target === target)),
     )
     .map((n) => n.id);
-  return runQueue(w, s, event, target, queue);
+  if (event === "tap") {
+    // 一次点击只推进一句：从尚未完成的节点里挑最早的一个
+    const first = w.nodes.find(
+      (n) =>
+        n.event === "tap" &&
+        (!n.target || n.target === target) &&
+        !s.completed.includes(n.id),
+    );
+    ids = first ? [first.id] : [];
+  }
+  return runQueue(w, s, event, target, ids, new Set(), event);
+}
+/** 把条件已满足的等待型节点排进定时队列（延时从“此刻”起算） */
+function scheduleDue(w: Work, s: Runtime, at: number, immediate = false) {
+  const pending = new Set((s.scheduled ?? []).map((x) => x.nodeId));
+  const due = w.nodes.filter(
+    (n) =>
+      n.type === "delay" &&
+      n.conditions.length > 0 &&
+      !pending.has(n.id) &&
+      n.conditions.every((c) =>
+        testCondition(c, { ...s, elapsedMs: at } as Runtime),
+      ),
+  );
+  if (!due.length) return false;
+  if (immediate) {
+    // 条件在很久以前就满足了：补跑时把延时视为已到期
+    runQueue(w, s, "timer", due[0].id, due.map((n) => n.id), new Set(due.map((n) => n.id)));
+    return true;
+  }
+  // 延时从“条件满足的那一刻”起算，因此排期基准取触发时刻
+  runQueue(
+    w,
+    s,
+    "timer",
+    due[0].id,
+    due.map((n) => n.id),
+    new Set(),
+    "timer",
+    at,
+  );
+  return true;
 }
 export function advance(
   w: Work,
@@ -236,7 +288,49 @@ export function advance(
       runQueue(w, s, "timer", due.nodeId, [due.nodeId], new Set([due.nodeId]));
       continue;
     }
-    if (s.elapsedMs >= end) break;
+    if (!due && s.elapsedMs < end && !s.scheduled.length) {
+      // 目录上还有等待型节点：条件已满足就当作“已经等了足够久”，直接放行
+      if (scheduleDue(w, s, s.elapsedMs, true)) continue;
+      // 没有定时任务：一次性跳到末尾
+      s.clockRemainderMs += end - s.elapsedMs;
+      s.elapsedMs = end;
+      if (s.clockRemainderMs >= 60000) {
+        const mins = Math.floor(s.clockRemainderMs / 60000);
+        s.clockRemainderMs -= mins * 60000;
+        const match = s.time.match(/^(\d{1,2}):(\d{2})$/);
+        if (match) {
+          const value = (Number(match[1]) * 60 + Number(match[2]) + mins) % 1440;
+          s.time =
+            String(Math.floor(value / 60)).padStart(2, "0") +
+            ":" +
+            String(value % 60).padStart(2, "0");
+        }
+      }
+      break;
+    }
+    if (s.elapsedMs >= end || !due) break;
+  }
+  // 条件等待型节点（例如“读了这条之后再等半小时”）：条件刚满足但还没排期，就在时间推进后补跑
+  const pendingIds = new Set((s.scheduled ?? []).map((x) => x.nodeId));
+  if (w.mode !== "explore") {
+    const waiting = w.nodes.filter(
+      (n) =>
+        n.type === "delay" &&
+        n.conditions.length > 0 &&
+        !pendingIds.has(n.id) &&
+        !(s.scheduled ?? []).some((x) => x.nodeId === n.id) &&
+        n.conditions.every((c) =>
+          testCondition(c, { ...s, elapsedMs: end } as Runtime),
+        ),
+    );
+    if (waiting.length)
+      runQueue(
+        w,
+        s,
+        "timer",
+        waiting[0].id,
+        waiting.map((n) => n.id),
+      );
   }
   return s;
 }
@@ -270,9 +364,36 @@ export function validateGraph(nodes: StoryNode[]) {
     reachable.add(id);
     nodes.find((n) => n.id === id)?.next.forEach(visit);
   };
+  // 没有 next 的等待型节点（定时、事件触发）由对应的玩家操作/时间推进唤醒，
+  // 因此还要把“引用了这些台词的内容”补进可达集合，否则逐句点击型的剧本会被误判。
   nodes
     .filter((n) => n.type === "start" || n.event)
     .forEach((n) => visit(n.id));
+  const revealKeys = new Set(
+    nodes.flatMap((n) =>
+      n.actions
+        .filter((a) => a.type === "reveal")
+        .map((a) => a.targetId || a.key),
+    ),
+  );
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const n of nodes) {
+      if (reachable.has(n.id)) continue;
+      const ready =
+        n.event === "time" ||
+        n.conditions.some(
+          (c) =>
+            c.key.startsWith("unlocked:") && revealKeys.has(c.key.slice(9)),
+        );
+      if (ready) {
+        reachable.add(n.id);
+        n.next.forEach(visit);
+        grew = true;
+      }
+    }
+  }
   nodes
     .filter((n) => n.type !== "comment" && !reachable.has(n.id))
     .forEach((n) => errors.push(`${n.label} 不可达`));

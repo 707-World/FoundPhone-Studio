@@ -462,6 +462,10 @@ function PhoneRuntime({
                     ...(work.data[app] ?? []),
                     ...(s.messages[app] ?? []),
                   ]}
+                  allItems={[
+                    ...(work.data[app] ?? []),
+                    ...(s.messages[app] ?? []),
+                  ]}
                   creator={creator}
                   state={s}
                   onRead={(id) => event("read", id)}
@@ -871,6 +875,7 @@ function AppContent({
   app,
   name,
   items,
+  allItems,
   creator,
   state,
   onRead,
@@ -885,6 +890,8 @@ function AppContent({
   app: AppPlugin;
   name: string;
   items: Item[];
+  /** 未过滤的完整内容（含尚未解锁的剧情台词） */
+  allItems?: Item[];
   creator: boolean;
   state: Runtime;
   onRead: (id: string) => void;
@@ -1004,10 +1011,12 @@ function AppContent({
               appId={app.id}
               owner={work.phone.owner}
               virtualTime={state.time}
+              state={state}
               ui={state.ui?.[app.id]}
               onUi={creator ? undefined : onUi}
               name={name}
               items={shown}
+              allItems={allItems}
               creator={creator}
               onRead={onRead}
               onItem={read}

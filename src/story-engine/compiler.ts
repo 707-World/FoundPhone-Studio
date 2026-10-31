@@ -251,10 +251,23 @@ export function compileStory(raw: unknown): { story: Story; work: Work } {
     n.actions.forEach((a, j) => {
       if (["unlock", "hide"].includes(a.type) && !itemIds.has(a.key))
         fail(`events.${i}.actions.${j}.key`, "不存在的内容");
+      if (
+        a.type === "reveal" &&
+        !itemIds.has(a.targetId || a.key) &&
+        !nodeIds.has(a.key)
+      )
+        fail(`events.${i}.actions.${j}.key`, "不存在的内容");
       if (a.type === "message" && !installed.has(a.key))
         fail(`events.${i}.actions.${j}.key`, "消息 App 未安装");
       if (a.type === "choice" && !nodeIds.has(a.key))
         fail(`events.${i}.actions.${j}.key`, "选项节点不存在");
+      if (
+        a.type === "reveal" &&
+        a.targetId &&
+        !itemIds.has(a.targetId) &&
+        !nodeIds.has(a.targetId)
+      )
+        fail(`events.${i}.actions.${j}.targetId`, "不存在的内容");
     });
     n.conditions.forEach((c, j) => {
       const [scope, ...rest] = c.key.split(":");
