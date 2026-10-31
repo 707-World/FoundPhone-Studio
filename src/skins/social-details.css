@@ -349,3 +349,71 @@
   font-size: inherit;
   line-height: inherit;
 }
+
+/* 小红书：帖子详情页 */
+.redbook-detail-title {
+  margin: 6px 0 12px;
+  font-size: 19px;
+  line-height: 1.4;
+}
+.redbook-detail-author {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+.redbook-detail-author span {
+  display: flex;
+  flex-direction: column;
+}
+.redbook-detail-author small {
+  color: #9a9aa3;
+  font-size: 12px;
+}
+.redbook-detail-body {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.redbook-comment-head {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  color: #7d7d86;
+}
+.redbook-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.redbook-comments li {
+  display: flex;
+  gap: 9px;
+}
+.redbook-comments span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.redbook-comments strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.redbook-comments p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.redbook-comments small {
+  color: #a5a5ae;
+  font-size: 11px;
+}
+.redbook-noresult {
+  padding: 30px 0;
+  text-align: center;
+  color: #9a9aa3;
+  font-size: 13px;
+}

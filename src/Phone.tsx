@@ -121,6 +121,7 @@ function PhoneRuntime({
   onOpen,
   runtime: external,
   onRuntime,
+  onRestart,
 }: {
   deviceLayout: ReturnType<typeof useDeviceLayout>;
   work: Work;
@@ -131,6 +132,7 @@ function PhoneRuntime({
   onOpen?: (app: string) => void;
   runtime?: Runtime;
   onRuntime?: (s: Runtime) => void;
+  onRestart?: () => void;
 }) {
   const [app, setApp] = useState("");
   const [homeRequest, setHomeRequest] = useState(0);
@@ -195,6 +197,23 @@ function PhoneRuntime({
     runtimeRef.current = next;
     setOwn(next);
     onRuntime?.(next);
+  };
+  /** 设置里的「重新开始」：清空存档，回到锁屏，故事从头再来 */
+  const restart = () => {
+    setApp("");
+    setFolder("");
+    setPanel("");
+    setPinOpen(false);
+    setQuickCamera(false);
+    setBanner("");
+    setContextApp("");
+    noticesSeen.current = 0;
+    appSnapshots.current.clear();
+    setHomeRequest((x) => x + 1);
+    setLocked(!creator);
+    void db.saves.delete(work.id).catch(() => undefined);
+    onRestart?.();
+    if (!external) update(dispatch(work, initialRuntime(work), "start"));
   };
   useEffect(() => {
     let active = true;
@@ -266,7 +285,10 @@ function PhoneRuntime({
       if (!recent.includes(id) && id !== app) appSnapshots.current.delete(id);
   };
   const open = (id: string) => {
-    if (!work.apps.some((a) => a.id === id && a.installed)) return;
+    const row = work.apps.find((a) => a.id === id);
+    if (!row) return;
+    const hijack = (runtimeRef.current.forcedOff ?? []).length > 0;
+    if (!row.installed && !hijack) return;
     setApp(id);
     setKeyboard(false);
     setRecent((v) => [id, ...v.filter((a) => a !== id)].slice(0, 8));
@@ -275,8 +297,19 @@ function PhoneRuntime({
     onOpen?.(id);
     event("openApp", id);
   };
-  const installedApps = work.apps.filter((a) => a.installed);
-  const apps = installedApps.filter((a) => a.visible);
+  /**
+   * 剧情接管之后：卸载也卸不掉。
+   * 只要他还在给你发消息，这些图标就会一直在桌面上。
+   */
+  const hijacked = (s.forcedOff ?? []).length > 0;
+  /** 这三个 App 他赖着不走：卸载了图标也会自己跑回桌面 */
+  const HAUNTED = new Set(["kakao", "instagram", "messages", "phone"]);
+  const installedApps = work.apps.filter(
+    (a) => a.installed || (hijacked && (a.visible || HAUNTED.has(a.id))),
+  );
+  const apps = installedApps.filter(
+    (a) => a.visible || (hijacked && HAUNTED.has(a.id)),
+  );
   const unlock = (pin = "") => {
     if (!work.phone.passcode || pin === work.phone.passcode) {
       setLocked(false);
@@ -288,6 +321,8 @@ function PhoneRuntime({
     }
   };
   useEffect(() => {
+    const hijack = (runtimeRef.current.forcedOff ?? []).length > 0;
+    if (hijack) return;
     if (app && !work.apps.some((a) => a.id === app && a.installed)) setApp("");
   }, [app, work.apps]);
   const displayTime = creator ? work.phone.time : s.time || work.phone.time;
@@ -317,8 +352,9 @@ function PhoneRuntime({
     <div
       ref={shell}
       style={{ "--phone-scale": deviceScale } as CSSProperties}
-      className={`phone-shell ios18 ${work.phone.theme === "dark" ? "dark-phone" : ""}`}
+      className={`phone-shell ios18 ${work.phone.theme === "dark" ? "dark-phone" : ""} ${s.screenOff ? "screen-off" : ""}`}
     >
+      {s.screenOff && <div className="phone-blackout" aria-label="屏幕已黑" />}
       <KeyboardContext.Provider value={setKeyboard}>
         <div
           className={`phone-screen ${customWallpaper ? "wallpaper-custom" : `wallpaper-${work.phone.wallpaper}`} ${locked ? "is-locked" : ""} ${app ? "in-app" : ""} ${keyboard ? "keyboard-open" : ""}`}
@@ -474,6 +510,8 @@ function PhoneRuntime({
                   onAdd={() => onAdd?.(app)}
                   onBack={() => setApp("")}
                   onSettings={onSettings}
+                  onRestart={restart}
+                  onOpenApp={(id) => open(id)}
                   onUi={(key, value) => {
                     const current = runtimeRef.current;
                     update(
@@ -651,17 +689,23 @@ function PhoneRuntime({
                   className="decline-call"
                   onClick={() => {
                     const call = runtimeRef.current.incomingCall;
-                    if (call)
-                      update(
-                        dispatch(
-                          work,
-                          { ...runtimeRef.current, incomingCall: null },
-                          call.status === "ringing"
-                            ? "callDeclined"
-                            : "callEnded",
-                          call.target || call.caller,
-                        ),
-                      );
+                    if (!call) return;
+                    const ringing = call.status === "ringing";
+                    update(
+                      dispatch(
+                        work,
+                        {
+                          ...runtimeRef.current,
+                          incomingCall: null,
+                          callLog: [
+                            ...(runtimeRef.current.callLog ?? []),
+                            ringing ? "decline" : "answer",
+                          ],
+                        },
+                        ringing ? "callDeclined" : "callEnded",
+                        call.target || call.caller,
+                      ),
+                    );
                   }}
                 >
                   <PhoneIcon size={25} />
@@ -674,18 +718,22 @@ function PhoneRuntime({
                     className="accept-call"
                     onClick={() => {
                       const call = runtimeRef.current.incomingCall;
-                      if (call)
-                        update(
-                          dispatch(
-                            work,
-                            {
-                              ...runtimeRef.current,
-                              incomingCall: { ...call, status: "answered" },
-                            },
-                            "callAnswered",
-                            call.target || call.caller,
-                          ),
-                        );
+                      if (!call) return;
+                      update(
+                        dispatch(
+                          work,
+                          {
+                            ...runtimeRef.current,
+                            incomingCall: { ...call, status: "answered" },
+                            callLog: [
+                              ...(runtimeRef.current.callLog ?? []),
+                              "answer",
+                            ],
+                          },
+                          "callAnswered",
+                          call.target || call.caller,
+                        ),
+                      );
                     }}
                   >
                     <PhoneIcon size={25} />
@@ -696,13 +744,7 @@ function PhoneRuntime({
             </div>
           )}
           {banner && !locked && (
-            <button
-              className="device-banner"
-              onClick={() => {
-                setBanner("");
-                setPanel("notification");
-              }}
-            >
+            <div className="device-banner" role="status">
               <AppIcon
                 id={notificationContent(banner, work.apps).appId}
                 small
@@ -711,7 +753,7 @@ function PhoneRuntime({
                 <strong>{notificationContent(banner, work.apps).title}</strong>
                 <span>{notificationContent(banner, work.apps).body}</span>
               </span>
-            </button>
+            </div>
           )}
           {panel === "switcher" && (
             <div className="device-switcher">
@@ -884,6 +926,8 @@ function AppContent({
   onAdd,
   onBack,
   onSettings,
+  onRestart,
+  onOpenApp,
   onUi,
   work,
 }: {
@@ -900,6 +944,8 @@ function AppContent({
   onAdd: () => void;
   onBack: () => void;
   onSettings?: () => void;
+  onRestart?: () => void;
+  onOpenApp?: (id: string) => void;
   onUi?: (key: string, value: UiValue) => void;
   work: Work;
 }) {
@@ -1025,6 +1071,7 @@ function AppContent({
               thread={thread}
               onThread={setThread}
               onEvent={onEvent}
+              onOpenApp={onOpenApp}
             />
           </Suspense>
         </div>
@@ -1087,6 +1134,7 @@ function AppContent({
           creator={creator}
           onItem={read}
           onSettings={onSettings}
+          onRestart={onRestart}
         />
       ) : app.id === "calculator" && !detail ? (
         <NativeCalculator

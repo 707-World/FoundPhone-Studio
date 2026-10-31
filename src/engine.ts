@@ -63,6 +63,20 @@ function apply(a: Action, s: Runtime, w: Work) {
         status: "ringing",
       };
       break;
+    case "flag":
+      // 剧情点：用 flag:<名字> 记下来，named 触发的节点据此判断该不该醒
+      if (!s.unlocked.includes("flag:" + a.key)) s.unlocked.push("flag:" + a.key);
+      break;
+    case "line":
+      // 一次记一个剧情点：台词本体由对应的 reveal 解锁，这里只标“这一段读完了”
+      if (!s.unlocked.includes("flag:" + a.key)) s.unlocked.push("flag:" + a.key);
+      break;
+    case "forceOff":
+      s.forcedOff ??= [];
+      if (!s.forcedOff.includes(String(a.value || a.key)))
+        s.forcedOff.push(String(a.value || a.key));
+      if (a.key === "screen") s.screenOff = true;
+      break;
     case "clue":
       if (!s.clues.includes(a.key)) s.clues.push(a.key);
       break;
@@ -207,6 +221,39 @@ function runAuto(w: Work, s: Runtime): boolean {
   }
   return true;
 }
+/**
+ * 剧情点唤醒。
+ *
+ * - `named`：所有条件都满足、且还没跑过的节点，立刻跑。它不产生台词，
+ *   只负责记剧情点 / 记通知 / 排下一条 `auto`，所以可以一次全跑。
+ * - `auto`：真正放台词的那一类，仍然按会话逐条排队（见 runAuto）。
+ *
+ * 这样剧本就能写成“读完某一段 → 记一个剧情点 → 下一个剧情点醒来”，
+ * 不必依赖时钟，节奏完全由玩家推进。
+ */
+function runStart(w: Work, s: Runtime): boolean {
+  if (w.mode === "explore") return false;
+  s.scheduled ??= [];
+  const pending = new Set(s.scheduled.map((x) => x.nodeId));
+  const ready = w.nodes.filter(
+    (n) =>
+      n.event === "named" &&
+      !pending.has(n.id) &&
+      !(n.once && s.completed.includes(n.id)) &&
+      n.conditions.every((c) => testCondition(c, s)),
+  );
+  if (!ready.length) return false;
+  runQueue(
+    w,
+    s,
+    "named",
+    "",
+    ready.map((n) => n.id),
+    new Set(ready.map((n) => n.id)),
+  );
+  runAuto(w, s);
+  return true;
+}
 export function dispatch(
   w: Work,
   previous: Runtime,
@@ -227,17 +274,23 @@ export function dispatch(
     )
     .map((n) => n.id);
   if (event === "tap") {
-    // 一次点击只推进一句：从尚未完成的节点里挑最早的一个
+    // 一次点击只推进一句：从尚未完成的节点里挑最早的一个。
+    // 这里必须连条件一起判断 —— 否则上一句「对方的话」还在打字时玩家抢先一点，
+    // 这次点击会被条件不满足的节点吃掉，玩家就白白少看一句。
+    const ready = (n: StoryNode) =>
+      n.conditions.every((c) => testCondition(c, s));
     const first = w.nodes.find(
       (n) =>
         n.event === "tap" &&
         (!n.target || n.target === target) &&
-        !s.completed.includes(n.id),
+        !s.completed.includes(n.id) &&
+        ready(n),
     );
     ids = first ? [first.id] : [];
   }
   runQueue(w, s, event, target, ids, new Set(), event);
   runAuto(w, s);
+  runStart(w, s);
   return s;
 }
 /** 把条件已满足的等待型节点排进定时队列（延时从“此刻”起算） */
@@ -286,11 +339,13 @@ export function advance(
   s.clockRemainderMs ??= 0;
   s.scheduled ??= [];
   let resumes = 0;
+  if (w.mode !== "explore") runStart(w, s);
   while (true) {
     // 条件已满足但还没排期的等待型节点：先排期，延时从“此刻”起算
     if (w.mode !== "explore" && !s.scheduled.length && scheduleDue(w, s, s.elapsedMs))
       continue;
     // 还没排期的自动台词（对方的话）：按间隔排进去，一条一条地弹
+    if (w.mode !== "explore" && !s.scheduled.length && runStart(w, s)) continue;
     if (w.mode !== "explore" && !s.scheduled.length && runAuto(w, s)) continue;
     s.scheduled.sort((a, b) => a.due - b.due);
     const due =
@@ -330,7 +385,10 @@ export function advance(
       s.scheduled.splice(s.scheduled.indexOf(due), 1);
       resumes++;
       runQueue(w, s, "timer", due.nodeId, [due.nodeId], new Set([due.nodeId]));
-      if (w.mode !== "explore") runAuto(w, s);
+      if (w.mode !== "explore") {
+        runStart(w, s);
+        runAuto(w, s);
+      }
       continue;
     }
     if (!due && s.elapsedMs < end && !s.scheduled.length) {

@@ -57,6 +57,12 @@ export const actionSchema = z.object({
     "call",
     /** 解锁一条“待玩家点击推进”的剧情台词或素材 */
     "reveal",
+    /** 记一个“剧情点”名字，供 named 触发的节点醒来 */
+    "flag",
+    /** 记一条剧情台词：按名字排队，由引擎逐条放出来 */
+    "line",
+    /** 关掉某个应用（删不掉的联系人、卸载后照样收到消息都在这里体现） */
+    "forceOff",
   ]),
   key: z.string(),
   value: z.union([z.string(), z.number(), z.boolean()]),
@@ -144,6 +150,12 @@ export type Runtime = {
     target: string;
     status: "ringing" | "answered";
   } | null;
+  /** 已经打进来的来电（含被挂断的记录），结局分支用 */
+  callLog?: ("answer" | "decline")[];
+  /** 被强制关掉的内容：删除好友 / 卸载应用都在这 */
+  forcedOff?: string[];
+  /** 结局定格：blackScreen 之后整个屏幕黑掉 */
+  screenOff?: boolean;
   ui?: Record<string, Record<string, UiValue>>;
   workId: string;
   revision: number;
@@ -168,6 +180,9 @@ export function initialRuntime(w: Work): Runtime {
     clockRemainderMs: 0,
     scheduled: [],
     incomingCall: null,
+    callLog: [],
+    forcedOff: [],
+    screenOff: false,
     ui: {},
     workId: w.id,
     revision: w.updatedAt,

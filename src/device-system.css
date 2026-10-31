@@ -1191,6 +1191,8 @@
   text-align: left;
   box-shadow: 0 6px 20px #0002;
   animation: banner-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  /* 只是提示，不该挡住下面 App 的返回键和标题 */
+  pointer-events: none;
 }
 .ios18 .device-banner > span:last-child {
   flex: 1;
@@ -1323,4 +1325,54 @@
   padding-right: 16px;
   grid-template-rows: repeat(6, 99px);
   grid-auto-rows: 99px;
+}
+
+/* 设置 · 重新开始 */
+.ios18 .settings-restart-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: #0006;
+  display: grid;
+  place-items: center;
+  padding: 0 34px;
+}
+.ios18 .settings-restart-box {
+  width: 100%;
+  border-radius: 14px;
+  background: #f8f8f8;
+  overflow: hidden;
+  text-align: center;
+}
+.ios18 .settings-restart-box strong {
+  display: block;
+  padding: 19px 16px 4px;
+  font-size: 17px;
+}
+.ios18 .settings-restart-box p {
+  margin: 0;
+  padding: 0 16px 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #3c3c43;
+}
+.ios18 .settings-restart-box > div {
+  display: flex;
+  border-top: 0.5px solid #b8b8bb;
+}
+.ios18 .settings-restart-box button {
+  flex: 1;
+  border: 0;
+  background: none;
+  height: 44px;
+  font-size: 17px;
+  cursor: pointer;
+}
+.ios18 .settings-restart-cancel {
+  color: #007aff;
+  border-right: 0.5px solid #b8b8bb !important;
+}
+.ios18 .settings-restart-ok {
+  color: #ff3b30;
+  font-weight: 600;
 }

@@ -18,6 +18,7 @@ import {
   Link,
   Globe,
   Mic,
+  RotateCcw,
 } from "lucide-react";
 import type { Work, Item } from "../schema";
 import { IOSToggle } from "../vendor/konsta/Toggle";
@@ -51,19 +52,22 @@ export function NativeSettings({
   creator,
   onItem,
   onSettings,
+  onRestart,
 }: {
   work: Work;
   items: Item[];
   creator: boolean;
   onItem: (i: Item) => void;
   onSettings?: () => void;
+  onRestart?: () => void;
 }) {
   const nav = useNavigation(),
     [query, setQuery] = useState(""),
     [airplane, setAirplane] = useState(false),
     [wifi, setWifi] = useState(true),
     [bluetooth, setBluetooth] = useState(true),
-    [lowPower, setLowPower] = useState(false);
+    [lowPower, setLowPower] = useState(false),
+    [confirm, setConfirm] = useState(false);
   const row = (label: string, value?: string, click?: () => void) => (
     <button key={label} className="settings-native-row" onClick={click}>
       <span>{label}</span>
@@ -270,6 +274,27 @@ export function NativeSettings({
                   ))}
               </div>
             ))}
+            {!query && onRestart && (
+              <div className="settings-group">
+                <div
+                  className="settings-native-row"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="重新开始"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") setConfirm(true);
+                  }}
+                  onClick={() => setConfirm(true)}
+                >
+                  <span className="settings-glyph" style={{ background: "#ff3b30" }}>
+                    <RotateCcw size={21} />
+                  </span>
+                  <span>重新开始</span>
+                  <small>清除进度</small>
+                  <ChevronRight size={16} />
+                </div>
+              </div>
+            )}
           </>
         )}
         {items
@@ -289,6 +314,31 @@ export function NativeSettings({
           </button>
         )}
       </NavigationPage>
+      {confirm && (
+        <div className="settings-restart-mask" role="dialog" aria-label="确认重新开始">
+          <div className="settings-restart-box">
+            <strong>重新开始？</strong>
+            <p>当前进度、备注与已发内容都会被清除，故事将从锁屏重新开始。</p>
+            <div>
+              <button
+                className="settings-restart-cancel"
+                onClick={() => setConfirm(false)}
+              >
+                取消
+              </button>
+              <button
+                className="settings-restart-ok"
+                onClick={() => {
+                  setConfirm(false);
+                  onRestart?.();
+                }}
+              >
+                重新开始
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {!nav.page && (
         <label className="settings-search">
           <Search size={23} />

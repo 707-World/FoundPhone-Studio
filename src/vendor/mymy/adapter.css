@@ -796,6 +796,18 @@
   max-width: 180px;
   border-radius: 10px;
 }
+.mymy-instagram .igdmpic {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.mymy-instagram .igdmpic:active {
+  opacity: 0.85;
+}
 .mymy-instagram .igdmi {
   display: flex;
   gap: 8px;
@@ -871,4 +883,69 @@
   letter-spacing: 0.04em;
   text-align: center;
   width: fit-content;
+}
+
+/* ------------------------------------------------------------------
+   输入栏永远钉在底部：
+   会话区自己滚动，输入栏不参与“被内容顶下去”。
+   用 :has 只在会话页生效，不打扰列表页。
+------------------------------------------------------------------ */
+.mymy-ui.mymy-kakao:has(.msgs),
+.mymy-instagram .igdm {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.mymy-ui .msgs,
+.mymy-instagram .igdmb {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.mymy-ui .kzinp,
+.mymy-instagram .igdmi {
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: inherit;
+  backdrop-filter: blur(12px);
+}
+.mymy-ui .kzinp {
+  margin-bottom: 0;
+  padding-bottom: 10px;
+  background: #b2c7da;
+}
+
+/* 新版消息带秒：一条条往上叠，最新的永远在最下面 */
+.mymy-ui .kzm {
+  align-items: flex-end;
+}
+.mymy-ui .kzm.first .kzmav {
+  margin-bottom: 2px;
+}
+.mymy-ui .kzday {
+  align-self: center;
+  margin: 8px 0 4px;
+}
+
+/* 删除好友：删得掉的立刻消失，删不掉的在原地说一句 */
+.mymy-ui .mymy-delete {
+  color: #d9483f;
+  font-weight: 600;
+}
+.mymy-ui .mymy-delete-note {
+  margin: 6px 0 0;
+  color: #d9483f;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* 剧情接管：输入框变灰，只能看他说 */
+.mymy-ui .mymy-locked-input input,
+.mymy-instagram .igdmi input[readonly] {
+  background: #ececed;
+  color: #8a8a90;
 }

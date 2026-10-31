@@ -143,7 +143,9 @@ export function compileStory(raw: unknown): { story: Story; work: Work } {
     raw: Partial<z.infer<typeof itemSchema>>,
     p: string,
   ) => {
-    if (!installed.has(app)) fail(p, `App ${app} 未安装`);
+    // 允许给「App Store 里可下载」的 App 预置内容：装好就能看到
+    if (!installed.has(app) && !configuredIds.includes(app))
+      fail(p, `App ${app} 未安装，也没在 installedApps 里声明`);
     unique(raw.id!, p + ".id");
     const item = itemSchema.parse({
       time: s.phone.date + " " + (s.phone.time || "21:41"),

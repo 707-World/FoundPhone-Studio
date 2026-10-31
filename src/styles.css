@@ -4924,3 +4924,25 @@ label {
   background: #e34f58;
   transform: rotate(135deg);
 }
+
+/* 结局：屏幕黑掉，什么都点不动 */
+.phone-blackout {
+  position: absolute;
+  inset: 6px;
+  border-radius: 41px;
+  background: #000;
+  z-index: 400;
+  animation: blackout 2.4s ease forwards;
+  pointer-events: all;
+}
+@keyframes blackout {
+  0% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 1;
+  }
+}

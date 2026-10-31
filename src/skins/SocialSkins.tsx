@@ -1,4 +1,5 @@
 import { useSkinState } from "../skinState";
+import "./social-details.css";
 import {
   ArrowDown,
   ArrowUp,
@@ -327,12 +328,64 @@ export function FacebookSkin(p: Props) {
 }
 export function RedbookSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "发现");
+  const [open, setOpen] = useState<Item | null>(null);
   const list =
     tab === "收藏"
       ? items.filter((i) => i.favorite)
       : tab === "关注"
         ? items.filter((i) => i.folder === "关注")
         : items;
+  // 搜到了什么，由剧本决定哪些帖子会被翻出来
+  const onSearch = (value: string) => {
+    setQ(value);
+    // 搜什么关键词要原样告诉剧本：搜人名和搜事故，翻出来的是两回事
+    if (value.trim()) p.onEvent?.("search", "redbook:" + value.trim());
+  };
+  if (open)
+    return (
+      <div className="catalog-skin redbook-ui redbook-detail">
+        <Header p={p}>
+          <button aria-label="返回小红书" onClick={() => setOpen(null)}>
+            返回
+          </button>
+        </Header>
+        <div className="catalog-scroll">
+          <h1 className="redbook-detail-title">{open.title}</h1>
+          <div className="redbook-detail-author">
+            <Avatar name={open.sender} />
+            <span>
+              <strong>{open.sender}</strong>
+              <small>{open.time.slice(0, 10)}</small>
+            </span>
+          </div>
+          <p className="redbook-detail-body">{open.body}</p>
+          {open.media && <Media item={open} />}
+          <h3 className="redbook-comment-head">
+            共 {open.comments.length} 条评论
+          </h3>
+          <ul className="redbook-comments">
+            {open.comments.map((c, n) => {
+              const cut = c.indexOf(":");
+              const who = cut > 0 ? c.slice(0, cut) : "网友" + (n + 1);
+              const text = cut > 0 ? c.slice(cut + 1) : c;
+              return (
+                <li key={c + n}>
+                  <Avatar name={who} />
+                  <span>
+                    <strong>{who}</strong>
+                    <p>{text}</p>
+                    {meta(open, "commentTime") && (
+                      <small>{meta(open, "commentTime")}</small>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <Empty items={open.comments.length ? [open] : []} />
+        </div>
+      </div>
+    );
   return (
     <div className="catalog-skin redbook-ui">
       <Header p={p} />
@@ -348,10 +401,20 @@ export function RedbookSkin(p: Props) {
         ))}
       </div>
       <div className="catalog-scroll">
-        <SearchBox value={q} set={setQ} />
+        <SearchBox value={q} set={onSearch} placeholder="搜索小红书" />
+        {q.trim() && !list.length && (
+          <p className="redbook-noresult">没有找到「{q}」相关内容</p>
+        )}
         <div className="redbook-masonry">
           {list.map((i) => (
-            <button key={i.id} onClick={() => p.onItem(i)}>
+            <button
+              key={i.id}
+              aria-label={`打开帖子${i.title}`}
+              onClick={() => {
+                p.onItem(i);
+                setOpen(i);
+              }}
+            >
               <Media item={i} />
               <strong>{i.title}</strong>
               <div>

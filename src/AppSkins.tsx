@@ -53,6 +53,8 @@ export type SkinProps = {
   onThread: (s: string) => void;
   /** 玩家在皮肤内产生剧情事件（点赞、发消息、接受好友申请等） */
   onEvent?: (event: string, target: string) => void;
+  /** 皮肤内部跳转到另一个 App（例如点地址打开地图） */
+  onOpenApp?: (id: string) => void;
 };
 function Avatar({
   name,

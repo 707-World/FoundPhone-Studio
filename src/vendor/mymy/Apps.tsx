@@ -1,7 +1,7 @@
 /* React/data adapters for dudwo5/Mymy UI templates: kt/ktn/KHD/bub,
  * igHome/igProfile/igDM/igSheet, xHome. See NOTICE.txt for permission.
  * Author content, DOM globals, timers and media dependencies are excluded. */
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Search,
@@ -117,10 +117,13 @@ export function MymyKakao(p: SkinProps) {
     [sent, setSent] = useSkinState<string[]>(p, "mymyKktSent", []),
     [aliases, setAliases] = useSkinState<string[]>(p, "mymyKktAliases", []),
     [declined, setDeclined] = useSkinState<string[]>(p, "mymyKktDeclined", []),
+    [deleted, setDeleted] = useSkinState<string[]>(p, "mymyKktDeleted", []),
     [draft, setDraft] = useState(""),
     [query, setQuery] = useState(""),
     [aliasDraft, setAliasDraft] = useState(""),
     [menu, setMenu] = useState(false);
+  /** 被强制“关掉”的内容（删不掉的好友、卸不掉的软件）都记在这里 */
+  const off = new Set(p.state?.forcedOff ?? []);
   const aliasFor = (t: string) => {
     const row = aliases.find((a) => a.split("\t")[0] === t);
     return row ? row.split("\t").slice(1).join("\t") : "";
@@ -130,18 +133,48 @@ export function MymyKakao(p: SkinProps) {
     setAliases(name.trim() ? [...rest, t + "\t" + name.trim()] : rest);
   };
   const displayName = (t: string) => aliasFor(t) || t;
+  /**
+   * 删除好友：普通的联系人就真的从列表里消失（记进 ui.deleted，刷新也还在）。
+   * 但“他”删不掉 —— 点了只会跳出一句提示，聊天框岿然不动。
+   */
+  const [deleteNote, setDeleteNote] = useState("");
+  /** 剧情接管：输入框封死，玩家只能看着他一直发 */
+  const locked = off.has("input:lock") || (p.state?.screenOff ?? false);
+  // 有些人删不掉：要么被剧情锁死，要么剧本一开始就标了“甩不掉”
+  const undeletable =
+    off.has("contact:" + p.thread) ||
+    p.state?.variables?.["sticky:" + p.thread] === true;
+  const refusedDelete = (t: string) => {
+    if (undeletable) {
+      setDeleteNote(`${displayName(t)} 无法删除`);
+      p.onEvent?.("delete", t);
+      return;
+    }
+    const rest = deleted.filter((x) => x !== t);
+    setDeleted([...rest, t]);
+    setMenu(false);
+    setDeleteNote("");
+    p.onThread("");
+  };
   // 用“手机当天”补日期，玩家自己发的消息才会排在最下面而不是掉回旧聊天里
   const day = p.state?.date || p.items[0]?.time.slice(0, 10) || "";
   const stamp = (t: string) =>
     /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t) ? t : (day + " " + t).trim();
   const requests = p.items.filter(
-    (i) => i.meta.request === "true" && !declined.includes(i.id),
+    (i) =>
+      i.meta.request === "true" &&
+      !declined.includes(i.id) &&
+      !off.has("contact:Juyeon"),
   );
   /** 好友申请还没处理完时，Kakao 里看不到 Juyeon 的聊天框 */
   const hiddenThread = new Set(requests.length ? ["Juyeon", "好友申请"] : []);
   const list = grouped(
       p.items.filter(
-        (i) => i.meta.request !== "true" && !hiddenThread.has(i.title),
+        (i) =>
+          i.meta.request !== "true" &&
+          !hiddenThread.has(i.title) &&
+          !deleted.includes(i.title) &&
+          !off.has("contact:" + i.title),
       ),
     ),
     messages = [
@@ -172,18 +205,22 @@ export function MymyKakao(p: SkinProps) {
         }
       }),
     ].sort((a, b) => {
-      // 玩家自己发的消息始终排在最后，发出去就能在最下面看到
-      const la = a.meta.local === "true",
-        lb = b.meta.local === "true";
-      if (la !== lb) return la ? 1 : -1;
+      // 一律按时间先后排：一条新的永远在下面。
+      // 玩家自己发的话用的是发送那一刻的时间，所以自然落在最后。
       const x = stamp(a.time),
         y = stamp(b.time);
       if (x !== y) return x < y ? -1 : 1;
-      return la ? 1 : -1;
+      return a.meta.local === "true" ? 1 : b.meta.local === "true" ? -1 : 0;
     }),
     /** 当前会话里还没被玩家点出来的剧情台词数量：>0 时输入栏变成“点击继续” */
     pending = pendingLines(p, (i) => i.title === p.thread),
-    scroll = useRef<HTMLDivElement>(null);
+    /** 剧本亮起的“这一段可以开始”的灯：没它玩家就没有可点的入口 */
+    entry = p.state?.variables?.["entry:" + p.thread] === true,
+    /** 有没有东西可点：有待点台词，或者新的一段正等着被点开 */
+    tappable = pending > 0 || entry,
+    /** 玩家还没往下翻到头：用来判断“下面有新消息” */
+    scroll = useRef<HTMLDivElement>(null),
+    [atBottom, setAtBottom] = useState(true);
   useEffect(() => {
     const node = scroll.current;
     if (node) node.scrollTop = node.scrollHeight;
@@ -207,7 +244,15 @@ export function MymyKakao(p: SkinProps) {
               </button>
             </span>
           </header>
-          <div className="msgs kk" ref={scroll}>
+          <div
+            className="msgs kk"
+            ref={scroll}
+            onScroll={() => {
+              const n = scroll.current;
+              if (n)
+                setAtBottom(n.scrollHeight - n.scrollTop - n.clientHeight < 48);
+            }}
+          >
             {messages.map((m, i) => {
               const run = messageRun(messages, i);
               const dayLabel = stamp(m.time).slice(0, 10),
@@ -220,14 +265,11 @@ export function MymyKakao(p: SkinProps) {
                   </p>
                 );
               return (
-                <>
+                <Fragment key={m.id}>
                   {dayLabel !== previousDay && (
-                    <p className="kzday" key={"day-" + m.id}>
-                      {dayLabel}
-                    </p>
+                    <p className="kzday">{dayLabel}</p>
                   )}
                   <div
-                    key={m.id}
                     className={
                       "kzm " +
                       (m.outgoing ? "kzmy" : "kzot") +
@@ -250,33 +292,56 @@ export function MymyKakao(p: SkinProps) {
                       </span>
                     )}
                     <button
-                      className={"kzbub" + (m.media ? " kzimg" : "")}
-                      onClick={() => m.meta.local !== "true" && read(p, m)}
+                      className={
+                        "kzbub" +
+                        (m.media ? " kzimg" : "") +
+                        (m.meta.map === "true" ? " kzmap" : "")
+                      }
+                      onClick={() => {
+                        // 聊天里的地址：点一下直接跳到地图 App
+                        if (m.meta.map === "true") {
+                          p.onOpenApp?.("maps");
+                          return;
+                        }
+                        if (m.meta.local !== "true") read(p, m);
+                      }}
                     >
-                      {m.media ? <Media item={m} /> : m.body}
+                      {m.media ? (
+                        <Media item={m} />
+                      ) : m.meta.map === "true" ? (
+                        <span className="kzmap-body">
+                          <strong>📍 {m.body}</strong>
+                          <small>{m.meta.place}</small>
+                          <em>轻触在地图中打开</em>
+                        </span>
+                      ) : (
+                        m.body
+                      )}
                     </button>
                     {!m.outgoing && run.last && (
                       <span className="kzt">{m.time.slice(-5)}</span>
                     )}
                   </div>
-                </>
+                </Fragment>
               );
             })}
             {!messages.length && <Blank />}
           </div>
-          {pending > 0 && (
+          {tappable && (
             <button
               className="mymy-tap"
               aria-label="点击继续剧情"
               onClick={() => p.onEvent?.("tap", p.thread)}
             >
-              轻触屏幕继续
+              {atBottom ? "轻触屏幕继续" : "下面有新消息 ↓"}
             </button>
           )}
           <form
-            className="kzinp"
+            className={"kzinp" + (locked ? " mymy-locked-input" : "")}
             onSubmit={(e) => {
               e.preventDefault();
+              // 被接管时：一个字都发不出去
+              if (locked) return;
               if (draft.trim()) {
                 setSent([
                   ...sent,
@@ -300,15 +365,17 @@ export function MymyKakao(p: SkinProps) {
             </button>
             <input
               aria-label="KKT消息"
-              placeholder={pending ? "点击输入栏继续剧情" : "输入消息"}
-              value={pending ? "" : draft}
+              placeholder={
+                locked ? "…" : tappable ? "点击输入栏继续剧情" : "输入消息"
+              }
+              value={pending || locked ? "" : draft}
               maxLength={2000}
-              readOnly={pending > 0}
+              readOnly={pending > 0 || locked}
               onFocus={() => {
-                if (pending) p.onEvent?.("tap", p.thread);
+                if (tappable) p.onEvent?.("tap", p.thread);
               }}
               onClick={() => {
-                if (pending) p.onEvent?.("tap", p.thread);
+                if (tappable) p.onEvent?.("tap", p.thread);
               }}
               onChange={(e) => setDraft(e.target.value)}
             />
@@ -316,7 +383,7 @@ export function MymyKakao(p: SkinProps) {
             <button
               className={draft.trim() ? "go" : ""}
               aria-label="发送KKT消息"
-              disabled={!draft.trim() || pending > 0}
+              disabled={!draft.trim() || pending > 0 || locked}
             >
               ↑
             </button>
@@ -343,6 +410,19 @@ export function MymyKakao(p: SkinProps) {
               >
                 保存备注
               </button>
+              {/* 所有联系人都能点，但有些人（有些东西）删不掉 */}
+              <button
+                className="mymy-delete"
+                aria-label="删除该好友"
+                onClick={() => refusedDelete(p.thread)}
+              >
+                删除该好友
+              </button>
+              {deleteNote && (
+                <p className="mymy-delete-note" role="status">
+                  {deleteNote}
+                </p>
+              )}
               <button onClick={() => setMenu(false)}>完成</button>
             </div>
           )}
@@ -510,6 +590,12 @@ export function MymyInstagram(p: SkinProps) {
     [nameDraft, setNameDraft] = useState(""),
     [bioDraft, setBioDraft] = useState(""),
     [avatarDraft, setAvatarDraft] = useState("");
+  /** 被强制“关掉”的内容（卸不掉的软件）都记在这里 */
+  const off = new Set(p.state?.forcedOff ?? []);
+  /** 剧情接管：输入框封死 */
+  const locked = off.has("input:lock") || (p.state?.screenOff ?? false);
+  /** IG 私信的事件名要跟 Kakao 区分开，否则两条线会互相抢点击 */
+  const dmKey = "ig:" + dm;
   const my = (() => {
     try {
       const raw: unknown = profile.length ? JSON.parse(profile[0]) : {};
@@ -628,6 +714,23 @@ export function MymyInstagram(p: SkinProps) {
       return [];
     }
   });
+  /**
+   * 第七段：玩家只要发一条帖子，他就会立刻来评论。
+   * 剧本用 flag 通知皮肤，皮肤记住是哪一条帖子被评论过（只评论一次）。
+   */
+  const [juyeonCmt, setJuyeonCmt] = useSkinState<string[]>(
+    p,
+    "mymyIgJuyeonCmt",
+    [],
+  );
+  const juyeonCommented = p.state?.variables?.["flag:igJuyeonComment"] === true;
+  const lastMine = mine.length ? mine[mine.length - 1].id : "";
+  useEffect(() => {
+    if (juyeonCommented && !juyeonCmt.length && lastMine)
+      setJuyeonCmt([lastMine]);
+  }, [juyeonCommented, juyeonCmt.length, lastMine]);
+  const extraComments = (i: Item) =>
+    juyeonCmt.includes(i.id) ? ["Juyeon: 我刚还在想你😺"] : [];
   const posts = [
       ...mine,
       ...p.items.filter(
@@ -668,6 +771,11 @@ export function MymyInstagram(p: SkinProps) {
   const dmPending = dm
     ? pendingLines(p, (i) => i.folder === "私信" && i.title === dm)
     : 0;
+  /** 剧本亮起的“这一段可以开始”的灯（IG 私信用自己的键，免得跟 Kakao 抢） */
+  const dmEntry = dm
+    ? p.state?.variables?.["entry:ig:" + dm] === true
+    : false;
+  const dmTappable = dmPending > 0 || dmEntry;
   const toggle = (id: string, values: string[], set: (v: string[]) => void) =>
     set(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
   const like = (i: Item, on: boolean) => {
@@ -781,6 +889,7 @@ export function MymyInstagram(p: SkinProps) {
         查看评论{" "}
         {i.comments.length +
           (buzzFor(i.id)?.comments.length ?? 0) +
+          extraComments(i).length +
           replies.filter((r) => r.startsWith(i.id + "\t")).length}
       </button>
       <p className="igt">{i.time}</p>
@@ -901,26 +1010,38 @@ export function MymyInstagram(p: SkinProps) {
                           <Avatar name={m.sender} src={m.avatar} />
                         )}
                         <span className="igdmbub">
-                          {m.media ? <Media item={m} /> : m.body}
+                          {m.media ? (
+                            <button
+                              className="igdmpic"
+                              aria-label={"查看图片" + m.title}
+                              onClick={() => setSelected(m)}
+                            >
+                              <Media item={m} />
+                            </button>
+                          ) : (
+                            m.body
+                          )}
                           <small>{m.time.slice(-5)}</small>
                         </span>
                       </div>
                     ))}
                     {!dmMessages.length && <Blank />}
                   </div>
-                  {dmPending > 0 && (
+                  {dmTappable && (
                     <button
                       className="mymy-tap"
                       aria-label="点击继续私信剧情"
-                      onClick={() => p.onEvent?.("tap", dm)}
+                      onClick={() => p.onEvent?.("tap", dmKey)}
                     >
                       轻触屏幕继续
                     </button>
                   )}
                   <form
-                    className="igdmi"
+                    className={"igdmi" + (locked ? " mymy-locked-input" : "")}
                     onSubmit={(e) => {
                       e.preventDefault();
+                      // 被接管时：一个字都发不出去
+                      if (locked) return;
                       if (draft.trim()) {
                         setDmSent([
                           ...dmSent,
@@ -931,27 +1052,33 @@ export function MymyInstagram(p: SkinProps) {
                           ]),
                         ]);
                         setDraft("");
-                        p.onEvent?.("send", dm);
+                        p.onEvent?.("send", dmKey);
                       }
                     }}
                   >
                     <input
                       aria-label="私信内容"
-                      value={dmPending ? "" : draft}
-                      maxLength={2000}
-                      readOnly={dmPending > 0}
-                      placeholder={dmPending ? "点击输入栏继续剧情" : "发消息…"}
-                      onFocus={() => {
-                        if (dmPending) p.onEvent?.("tap", dm);
-                      }}
+                      value={dmPending || locked ? "" : draft}
                       onClick={() => {
-                        if (dmPending) p.onEvent?.("tap", dm);
+                        if (dmTappable) p.onEvent?.("tap", dmKey);
+                      }}
+                      maxLength={2000}
+                      readOnly={dmPending > 0 || locked}
+                      placeholder={
+                        locked
+                          ? "…"
+                          : dmTappable
+                            ? "点击输入栏继续剧情"
+                            : "发消息…"
+                      }
+                      onFocus={() => {
+                        if (dmTappable) p.onEvent?.("tap", dmKey);
                       }}
                       onChange={(e) => setDraft(e.target.value)}
                     />
                     <button
                       aria-label="发送私信"
-                      disabled={!draft.trim() || dmPending > 0}
+                      disabled={!draft.trim() || dmPending > 0 || locked}
                     >
                       发送
                     </button>
@@ -1074,6 +1201,8 @@ export function MymyInstagram(p: SkinProps) {
                   setPhoto("");
                   setCompose(false);
                   setTab("主页");
+                  // 玩家发了帖：剧情可以据此醒来（比如“他立刻评论了你”）
+                  p.onEvent?.("post", "instagram");
                 }
               }}
             >
@@ -1182,6 +1311,7 @@ export function MymyInstagram(p: SkinProps) {
             </header>
             <div className="mymy-comments">
               {[
+                ...extraComments(sheet),
                 ...(buzzFor(sheet.id)?.comments ?? []),
                 ...sheet.comments,
                 ...replies

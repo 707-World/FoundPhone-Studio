@@ -725,12 +725,13 @@ export function FilesSkin(p: Props) {
   );
 }
 export function MusicSkin(p: Props) {
-  const { tab, setTab, items } = useContent(p, "资料库");
+  const { tab, setTab, q, setQ, items } = useContent(p, "资料库");
   const [song, setSong] = useTrack(p, items);
   return (
     <div className="catalog-skin native-music">
       <Header p={p} />
       <div className="catalog-scroll">
+        <SearchBox value={q} set={setQ} placeholder="搜索歌曲" />
         <h1>{tab}</h1>
         {tab === "歌单" ? (
           <div className="music-albums">
@@ -849,17 +850,70 @@ function LocationMap({
     </div>
   );
 }
+/** 真实地点：点一下就能交给系统地图去导航 */
+export function MapLaunch({ item }: { item: Item }) {
+  const lat = meta(item, "lat"),
+    lng = meta(item, "lng"),
+    name = meta(item, "place", item.title);
+  if (!lat || !lng) return null;
+  const q = encodeURIComponent(name.trim().replace(/^📍\s*/, ""));
+  const links: [string, string][] = [
+    ["Kakao 地图", `https://map.kakao.com/link/map/${q},${lat},${lng}`],
+    ["Naver 地图", `https://map.naver.com/p/search/${q}`],
+    ["Google 地图", `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`],
+  ];
+  return (
+    <div className="map-launch">
+      <p className="map-launch-title">{name.trim().replace(/^📍\s*/, "")}</p>
+      <a
+        className="map-launch-main"
+        href={links[0][1]}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="在地图App中打开"
+      >
+        <MapPin size={16} />
+        在地图 App 中打开
+      </a>
+      <div className="map-launch-alt">
+        {links.slice(1).map(([label, href]) => (
+          <a key={label} href={href} target="_blank" rel="noreferrer">
+            {label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 export function MapsSkin(p: Props) {
   const { q, setQ, items } = useContent(p, "地点");
+  /** 剧本里写了“这条地址是真的”：点开能直接导航 */
+  const real = items.filter((i) => i.meta.real === "true");
+  const [picked, setPicked] = useState(real[0]?.id ?? "");
+  const current = real.find((i) => i.id === picked) ?? real[0];
   return (
     <div className="catalog-skin native-maps">
       <Header p={p} />
       <LocationMap items={items} onItem={p.onItem} />
       <div className="map-sheet">
-        <SearchBox value={q} set={setQ} placeholder="搜索虚构地点" />
+        <SearchBox value={q} set={setQ} placeholder="搜索地点" />
+        {current && <MapLaunch item={current} />}
         <div className="map-places">
           {items.map((i) => (
-            <Row key={i.id} item={i} onItem={p.onItem} leading={<MapPin />} />
+            <button
+              key={i.id}
+              className={"map-place" + (i.id === current?.id ? " on" : "")}
+              onClick={() => {
+                p.onItem(i);
+                setPicked(i.id);
+              }}
+            >
+              <MapPin size={16} />
+              <span>
+                <strong>{i.title}</strong>
+                <small>{i.body}</small>
+              </span>
+            </button>
           ))}
         </div>
       </div>
