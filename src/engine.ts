@@ -174,21 +174,38 @@ function runQueue(
 /**
  * 自动节点（event 为 auto）：条件一满足就立刻执行。
  * 用来让“对方的话”自己弹出来 —— 玩家只需要点出自己说的那几句。
+ *
+ * 关键：话要**一条一条**地弹。所以这里不直接执行节点，而是把它排进定时队列，
+ * 隔 AUTO_GAP_MS 毫秒才真正放出来；同一段对话一次只排一条，
+ * 于是一连串回复会像真的在打字一样依次出现，而不是一口气全冒出来。
  */
-function runAuto(w: Work, s: Runtime) {
-  for (let i = 0; i < 100; i++) {
-    const ids = w.nodes
-      .filter(
-        (n) =>
-          n.event === "auto" &&
-          n.type !== "delay" &&
-          !(n.once && s.completed.includes(n.id)) &&
-          n.conditions.every((c) => testCondition(c, s)),
-      )
-      .map((n) => n.id);
-    if (!ids.length) return;
-    runQueue(w, s, "auto", "", ids, new Set(ids));
+const AUTO_GAP_MS = 1500;
+function runAuto(w: Work, s: Runtime): boolean {
+  if (w.mode === "explore") return false;
+  s.scheduled ??= [];
+  const pending = new Set(s.scheduled.map((x) => x.nodeId));
+  const ready = w.nodes.filter(
+    (n) =>
+      n.event === "auto" &&
+      n.type !== "delay" &&
+      !pending.has(n.id) &&
+      !(n.once && s.completed.includes(n.id)) &&
+      n.conditions.every((c) => testCondition(c, s)),
+  );
+  if (!ready.length) return false;
+  // 同一个会话里一次只排一条，保证严格逐条出现
+  const onePerThread = new Map<string, string>();
+  for (const n of ready) {
+    const key = n.target || "_";
+    if (!onePerThread.has(key)) onePerThread.set(key, n.id);
   }
+  for (const id of onePerThread.values()) {
+    const n = w.nodes.find((x) => x.id === id)!;
+    const gap = n.delayMs ?? AUTO_GAP_MS;
+    s.scheduled.push({ nodeId: n.id, due: (s.elapsedMs ?? 0) + gap });
+    s.trace.push(`auto:${gap}ms → ${n.label}`);
+  }
+  return true;
 }
 export function dispatch(
   w: Work,
@@ -273,6 +290,8 @@ export function advance(
     // 条件已满足但还没排期的等待型节点：先排期，延时从“此刻”起算
     if (w.mode !== "explore" && !s.scheduled.length && scheduleDue(w, s, s.elapsedMs))
       continue;
+    // 还没排期的自动台词（对方的话）：按间隔排进去，一条一条地弹
+    if (w.mode !== "explore" && !s.scheduled.length && runAuto(w, s)) continue;
     s.scheduled.sort((a, b) => a.due - b.due);
     const due =
       w.mode !== "explore" && resumes < 200 ? s.scheduled[0] : undefined;
