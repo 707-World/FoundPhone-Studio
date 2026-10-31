@@ -171,6 +171,25 @@ function runQueue(
   s.trace = s.trace.slice(-100);
   return s;
 }
+/**
+ * 自动节点（event 为 auto）：条件一满足就立刻执行。
+ * 用来让“对方的话”自己弹出来 —— 玩家只需要点出自己说的那几句。
+ */
+function runAuto(w: Work, s: Runtime) {
+  for (let i = 0; i < 100; i++) {
+    const ids = w.nodes
+      .filter(
+        (n) =>
+          n.event === "auto" &&
+          n.type !== "delay" &&
+          !(n.once && s.completed.includes(n.id)) &&
+          n.conditions.every((c) => testCondition(c, s)),
+      )
+      .map((n) => n.id);
+    if (!ids.length) return;
+    runQueue(w, s, "auto", "", ids, new Set(ids));
+  }
+}
 export function dispatch(
   w: Work,
   previous: Runtime,
@@ -200,7 +219,9 @@ export function dispatch(
     );
     ids = first ? [first.id] : [];
   }
-  return runQueue(w, s, event, target, ids, new Set(), event);
+  runQueue(w, s, event, target, ids, new Set(), event);
+  runAuto(w, s);
+  return s;
 }
 /** 把条件已满足的等待型节点排进定时队列（延时从“此刻”起算） */
 function scheduleDue(w: Work, s: Runtime, at: number, immediate = false) {
@@ -210,6 +231,7 @@ function scheduleDue(w: Work, s: Runtime, at: number, immediate = false) {
       n.type === "delay" &&
       n.conditions.length > 0 &&
       !pending.has(n.id) &&
+      !(n.once && s.completed.includes(n.id)) &&
       n.conditions.every((c) =>
         testCondition(c, { ...s, elapsedMs: at } as Runtime),
       ),
@@ -248,6 +270,9 @@ export function advance(
   s.scheduled ??= [];
   let resumes = 0;
   while (true) {
+    // 条件已满足但还没排期的等待型节点：先排期，延时从“此刻”起算
+    if (w.mode !== "explore" && !s.scheduled.length && scheduleDue(w, s, s.elapsedMs))
+      continue;
     s.scheduled.sort((a, b) => a.due - b.due);
     const due =
       w.mode !== "explore" && resumes < 200 ? s.scheduled[0] : undefined;
@@ -286,11 +311,10 @@ export function advance(
       s.scheduled.splice(s.scheduled.indexOf(due), 1);
       resumes++;
       runQueue(w, s, "timer", due.nodeId, [due.nodeId], new Set([due.nodeId]));
+      if (w.mode !== "explore") runAuto(w, s);
       continue;
     }
     if (!due && s.elapsedMs < end && !s.scheduled.length) {
-      // 目录上还有等待型节点：条件已满足就当作“已经等了足够久”，直接放行
-      if (scheduleDue(w, s, s.elapsedMs, true)) continue;
       // 没有定时任务：一次性跳到末尾
       s.clockRemainderMs += end - s.elapsedMs;
       s.elapsedMs = end;
@@ -309,28 +333,6 @@ export function advance(
       break;
     }
     if (s.elapsedMs >= end || !due) break;
-  }
-  // 条件等待型节点（例如“读了这条之后再等半小时”）：条件刚满足但还没排期，就在时间推进后补跑
-  const pendingIds = new Set((s.scheduled ?? []).map((x) => x.nodeId));
-  if (w.mode !== "explore") {
-    const waiting = w.nodes.filter(
-      (n) =>
-        n.type === "delay" &&
-        n.conditions.length > 0 &&
-        !pendingIds.has(n.id) &&
-        !(s.scheduled ?? []).some((x) => x.nodeId === n.id) &&
-        n.conditions.every((c) =>
-          testCondition(c, { ...s, elapsedMs: end } as Runtime),
-        ),
-    );
-    if (waiting.length)
-      runQueue(
-        w,
-        s,
-        "timer",
-        waiting[0].id,
-        waiting.map((n) => n.id),
-      );
   }
   return s;
 }

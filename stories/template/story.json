@@ -93,6 +93,102 @@
      "senderId": "owner"
     },
     {
+     "id": "kkt-d-1",
+     "body": "下周要不要出来吃个饭？好久没见了",
+     "time": "2026-10-24 19:12",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-2",
+     "body": "要！我最近正好闲得发慌",
+     "time": "2026-10-24 19:15",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-3",
+     "body": "那就周六？圣水洞那家烤肉店",
+     "time": "2026-10-24 19:16",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-4",
+     "body": "好 我先订位 到时候把地址发你",
+     "time": "2026-10-24 19:20",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-5",
+     "body": "你听说了吗 隔壁班的志勋和允雅在一起了",
+     "time": "2026-10-27 21:03",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-6",
+     "body": "？？？真的假的 什么时候的事",
+     "time": "2026-10-27 21:05",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-7",
+     "body": "上周就开始了 还是班长告诉我的",
+     "time": "2026-10-27 21:06",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-8",
+     "body": "我的天 这也太突然了 ㅋㅋㅋ",
+     "time": "2026-10-27 21:10",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-9",
+     "body": "投了三家 一家都没回我 ㅠㅠ",
+     "time": "2026-10-28 12:31",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-10",
+     "body": "别急 慢慢来 你这么厉害肯定没问题",
+     "time": "2026-10-28 12:40",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-11",
+     "body": "我同事推荐了一家咖啡店 据说提拉米苏绝了",
+     "time": "2026-10-29 13:40",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-12",
+     "body": "存了 周六之前先去探一下路？",
+     "time": "2026-10-29 13:45",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-13",
+     "body": "可以啊 顺便逛逛那边的店",
+     "time": "2026-10-29 13:46",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-14",
+     "body": "今天的面试怎么样",
+     "time": "2026-10-30 20:22",
+     "senderId": "friend"
+    },
+    {
+     "id": "kkt-d-15",
+     "body": "还行 就是等结果等到心慌",
+     "time": "2026-10-30 20:30",
+     "senderId": "owner"
+    },
+    {
+     "id": "kkt-d-16",
+     "body": "等消息最折磨人了 要不要出来喝一杯",
+     "time": "2026-10-30 20:33",
+     "senderId": "friend"
+    },
+    {
      "id": "kkt-f-5",
      "body": "说起来 今天下午有空吗",
      "time": "2026-11-01 11:20",
@@ -855,7 +951,7 @@
    "id": "n-b1-4",
    "label": "第1段 · 怎么了？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -905,7 +1001,7 @@
    "id": "n-b1-6",
    "label": "第1段 · 啊…",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -930,7 +1026,7 @@
    "id": "n-b1-7",
    "label": "第1段 · 那我走了？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -980,7 +1076,7 @@
    "id": "n-b2-3",
    "label": "第2段 · ？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1005,7 +1101,7 @@
    "id": "n-b2-4",
    "label": "第2段 · 什么",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1030,7 +1126,7 @@
    "id": "n-b2-5",
    "label": "第2段 · 你说啊",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1130,7 +1226,7 @@
    "id": "n-b2-9",
    "label": "第2段 · omg！！！",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1155,7 +1251,7 @@
    "id": "n-b2-10",
    "label": "第2段 · 爱情来敲门～",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1180,7 +1276,7 @@
    "id": "n-b3-2",
    "label": "第3段 · 等着急了吗？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1230,7 +1326,7 @@
    "id": "n-b3-4",
    "label": "第3段 · 不要生我气･᷄ὢ･᷅",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1255,7 +1351,7 @@
    "id": "n-b3-5",
    "label": "第3段 · 好不好？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1330,7 +1426,7 @@
    "id": "n-b3-8",
    "label": "第3段 · 哪样？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1380,7 +1476,7 @@
    "id": "n-b3-10",
    "label": "第3段 · 我不是刚认识你啊",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1430,7 +1526,7 @@
    "id": "n-b3-12",
    "label": "第3段 · 你是首尔艺高的",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1455,7 +1551,7 @@
    "id": "n-b3-13",
    "label": "第3段 · 对吧？",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1480,7 +1576,7 @@
    "id": "n-b3-14",
    "label": "第3段 · 我很早就认识你了",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1505,7 +1601,7 @@
    "id": "n-b3-15",
    "label": "第3段 · 好久不见 记得通过我",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1580,7 +1676,7 @@
    "id": "n-b4-4",
    "label": "第4段 · 可是没有见面呀",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1605,7 +1701,7 @@
    "id": "n-b4-5",
    "label": "第4段 · ㅋㅋㅋ",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1630,7 +1726,7 @@
    "id": "n-b4-6",
    "label": "第4段 · 开玩笑的",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "Juyeon",
    "conditions": [
     {
@@ -1655,7 +1751,7 @@
    "id": "n-b5-2",
    "label": "第5段 · 没印象",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1680,7 +1776,7 @@
    "id": "n-b5-3",
    "label": "第5段 · 怎么了 你的真命天子",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1755,7 +1851,7 @@
    "id": "n-b5-6",
    "label": "第5段 · 其他学校的吧 我们以",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1830,7 +1926,7 @@
    "id": "n-b5-9",
    "label": "第5段 · …….",
    "type": "event",
-   "event": "tap",
+   "event": "auto",
    "target": "朋友",
    "conditions": [
     {
@@ -1863,7 +1959,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "Instagram 有新动态"
+     "value": "Instagram：主页有新动态"
     }
    ],
    "next": [],
@@ -1897,7 +1993,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "Juyeon 给你发来了一条私信"
+     "value": "Instagram：Juyeon 给你发来了一条私信"
     }
    ],
    "next": [],
@@ -1937,7 +2033,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "朋友给你发来消息"
+     "value": "KakaoTalk：朋友给你发来消息"
     }
    ],
    "next": [],
@@ -1978,7 +2074,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "Juyeon 又发来一条私信"
+     "value": "Instagram：Juyeon 又发来一条私信"
     }
    ],
    "next": [],
@@ -2013,7 +2109,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "Juyeon 申请添加你为好友"
+     "value": "KakaoTalk：Juyeon 申请添加你为好友"
     }
    ],
    "next": [],
@@ -2060,47 +2156,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "Juyeon 已成为你的好友"
-    }
-   ],
-   "next": [],
-   "once": true
-  },
-  {
-   "id": "n-beat5",
-   "label": "再问朋友",
-   "type": "event",
-   "event": "send",
-   "target": "朋友",
-   "conditions": [
-    {
-     "key": "unlocked:kkt-b4-6",
-     "op": "eq",
-     "value": true
-    },
-    {
-     "key": "completed:n-accept",
-     "op": "eq",
-     "value": true
-    }
-   ],
-   "logic": "and",
-   "actions": [
-    {
-     "type": "time",
-     "key": "",
-     "value": "17:20"
-    },
-    {
-     "type": "variable",
-     "key": "beat5",
-     "value": true
-    },
-    {
-     "type": "reveal",
-     "key": "kkt-b5-1",
-     "value": true,
-     "targetId": "kkt-b5-1"
+     "value": "KakaoTalk：Juyeon 已成为你的好友"
     }
    ],
    "next": [],
@@ -2145,7 +2201,7 @@
     {
      "type": "notification",
      "key": "",
-     "value": "要不去问问朋友认不认识他？"
+     "value": "KakaoTalk：要不要问问朋友认不认识他？"
     }
    ],
    "next": [],
@@ -2200,23 +2256,11 @@
  ],
  "tests": [
   {
-   "name": "主线（逐句点击推进）",
+   "name": "主线（只点“我”的台词，对方自动回复）",
    "steps": [
     {
      "event": "like",
      "target": "ig-juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
     },
     {
      "event": "tap",
@@ -2250,63 +2294,7 @@
      "target": "朋友"
     },
     {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
      "advanceMs": 2700000
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
     },
     {
      "event": "tap",
@@ -2344,36 +2332,7 @@
      "target": "Juyeon"
     },
     {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "tap",
-     "target": "Juyeon"
-    },
-    {
-     "event": "send",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
-    },
-    {
-     "event": "tap",
-     "target": "朋友"
+     "advanceMs": 60000
     },
     {
      "event": "tap",

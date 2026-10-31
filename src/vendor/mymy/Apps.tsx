@@ -130,7 +130,8 @@ export function MymyKakao(p: SkinProps) {
     setAliases(name.trim() ? [...rest, t + "\t" + name.trim()] : rest);
   };
   const displayName = (t: string) => aliasFor(t) || t;
-  const day = p.items[0]?.time.slice(0, 10) || "";
+  // 用“手机当天”补日期，玩家自己发的消息才会排在最下面而不是掉回旧聊天里
+  const day = p.state?.date || p.items[0]?.time.slice(0, 10) || "";
   const stamp = (t: string) =>
     /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t) ? t : (day + " " + t).trim();
   const requests = p.items.filter(
@@ -171,10 +172,14 @@ export function MymyKakao(p: SkinProps) {
         }
       }),
     ].sort((a, b) => {
+      // 玩家自己发的消息始终排在最后，发出去就能在最下面看到
+      const la = a.meta.local === "true",
+        lb = b.meta.local === "true";
+      if (la !== lb) return la ? 1 : -1;
       const x = stamp(a.time),
         y = stamp(b.time);
       if (x !== y) return x < y ? -1 : 1;
-      return a.meta.local === "true" ? 1 : -1;
+      return la ? 1 : -1;
     }),
     /** 当前会话里还没被玩家点出来的剧情台词数量：>0 时输入栏变成“点击继续” */
     pending = pendingLines(p, (i) => i.title === p.thread),
@@ -265,7 +270,7 @@ export function MymyKakao(p: SkinProps) {
               aria-label="点击继续剧情"
               onClick={() => p.onEvent?.("tap", p.thread)}
             >
-              轻触屏幕继续 · {pending}
+              轻触屏幕继续
             </button>
           )}
           <form
@@ -909,7 +914,7 @@ export function MymyInstagram(p: SkinProps) {
                       aria-label="点击继续私信剧情"
                       onClick={() => p.onEvent?.("tap", dm)}
                     >
-                      轻触屏幕继续 · {dmPending}
+                      轻触屏幕继续
                     </button>
                   )}
                   <form
