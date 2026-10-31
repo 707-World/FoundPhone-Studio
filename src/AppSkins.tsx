@@ -47,6 +47,8 @@ export type SkinProps = {
   onBack: () => void;
   thread: string;
   onThread: (s: string) => void;
+  /** 玩家在皮肤内产生剧情事件（点赞、发消息、接受好友申请等） */
+  onEvent?: (event: string, target: string) => void;
 };
 function Avatar({
   name,

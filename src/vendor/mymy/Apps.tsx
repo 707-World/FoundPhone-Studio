@@ -29,6 +29,12 @@ import type { SkinProps } from "../../AppSkins";
 import { Avatar, Media } from "../../skins/shared";
 import { useSkinState } from "../../skinState";
 import { makeItem, type Item } from "../../schema";
+import {
+  IG_BUZZ_NAMES,
+  IG_COMMENT_MEDIA,
+  IG_COMMENT_TEXT,
+  IG_NPC_POSTS,
+} from "./igFeed";
 import "./ui.css";
 import "./adapter.css";
 function grouped(items: Item[]) {
@@ -51,6 +57,24 @@ export function messageRun(items: Item[], index: number) {
 }
 const read = (p: SkinProps, i: Item) =>
   p.creator || i.password ? p.onItem(i) : p.onRead(i.id);
+/** 从内容池中随机抽取若干条，保证同一批内不重复 */
+function pickSome<T>(pool: T[], count: number): T[] {
+  const bag = [...pool];
+  const out: T[] = [];
+  while (bag.length && out.length < count)
+    out.push(bag.splice(Math.floor(Math.random() * bag.length), 1)[0]);
+  return out;
+}
+type Buzz = { id: string; likes: number; comments: string[] };
+const IG_RELATIVE = [
+  "2小时前",
+  "5小时前",
+  "昨天",
+  "昨天",
+  "3小时前",
+  "6小时前",
+  "4小时前",
+];
 function Blank() {
   return <p className="mymy-empty">暂无内容</p>;
 }
@@ -65,6 +89,7 @@ export function MymyKakao(p: SkinProps) {
   const [tab, setTab] = useSkinState<string>(p, "mymyTab", "聊天"),
     [sent, setSent] = useSkinState<string[]>(p, "mymyKktSent", []),
     [aliases, setAliases] = useSkinState<string[]>(p, "mymyKktAliases", []),
+    [declined, setDeclined] = useSkinState<string[]>(p, "mymyKktDeclined", []),
     [draft, setDraft] = useState(""),
     [query, setQuery] = useState(""),
     [aliasDraft, setAliasDraft] = useState(""),
@@ -78,7 +103,13 @@ export function MymyKakao(p: SkinProps) {
     setAliases(name.trim() ? [...rest, t + "\t" + name.trim()] : rest);
   };
   const displayName = (t: string) => aliasFor(t) || t;
-  const list = grouped(p.items),
+  const day = p.items[0]?.time.slice(0, 10) || "";
+  const stamp = (t: string) =>
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t) ? t : (day + " " + t).trim();
+  const list = grouped(p.items.filter((i) => i.meta.request !== "true")),
+    requests = p.items.filter(
+      (i) => i.meta.request === "true" && !declined.includes(i.id),
+    ),
     messages = [
       ...p.items.filter((i) => i.title === p.thread),
       ...sent.flatMap((raw, index) => {
@@ -96,7 +127,7 @@ export function MymyKakao(p: SkinProps) {
               id: "local-kkt-" + index,
               title: entry[0],
               body: entry[1],
-              time: entry[2],
+              time: stamp(entry[2]),
               sender: p.owner || "机主",
               outgoing: true,
               meta: { local: "true" },
@@ -106,7 +137,12 @@ export function MymyKakao(p: SkinProps) {
           return [];
         }
       }),
-    ],
+    ].sort((a, b) => {
+      const x = stamp(a.time),
+        y = stamp(b.time);
+      if (x !== y) return x < y ? -1 : 1;
+      return a.meta.local === "true" ? 1 : -1;
+    }),
     scroll = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = scroll.current;
@@ -134,6 +170,12 @@ export function MymyKakao(p: SkinProps) {
           <div className="msgs kk" ref={scroll}>
             {messages.map((m, i) => {
               const run = messageRun(messages, i);
+              if (m.meta.contact === "true")
+                return (
+                  <p className="kzsys" key={m.id}>
+                    {m.body}
+                  </p>
+                );
               return (
                 <div
                   key={m.id}
@@ -186,6 +228,7 @@ export function MymyKakao(p: SkinProps) {
                   ]),
                 ]);
                 setDraft("");
+                p.onEvent?.("send", p.thread);
               }
             }}
           >
@@ -292,6 +335,34 @@ export function MymyKakao(p: SkinProps) {
             <div className="kzksec">
               {tab === "好友" ? "好友" : "全部聊天"} {list.length}
             </div>
+            {requests.length > 0 && (
+              <div className="kzksec mymy-req-head">
+                好友申请 {requests.length}
+              </div>
+            )}
+            {requests.map((r) => (
+              <div className="kzkr kzkreq" key={r.id}>
+                <Avatar name={r.sender} src={r.avatar} />
+                <span className="kzkn">
+                  <b>{displayName(r.sender)}</b>
+                  <small>{r.body || "申请添加你为好友"}</small>
+                </span>
+                <span className="mymy-req-act">
+                  <button
+                    aria-label={"接受" + r.sender + "的好友申请"}
+                    onClick={() => p.onEvent?.("accept", r.sender)}
+                  >
+                    接受
+                  </button>
+                  <button
+                    aria-label={"拒绝" + r.sender + "的好友申请"}
+                    onClick={() => setDeclined([...declined, r.id])}
+                  >
+                    拒绝
+                  </button>
+                </span>
+              </div>
+            ))}
             {list
               .filter((g) => g.title.includes(query.trim()))
               .map((g) => {
@@ -352,6 +423,10 @@ export function MymyInstagram(p: SkinProps) {
     [saved, setSaved] = useSkinState<string[]>(p, "mymySaved", []),
     [replies, setReplies] = useSkinState<string[]>(p, "mymyReplies", []),
     [myPosts, setMyPosts] = useSkinState<string[]>(p, "mymyIgPosts", []),
+    [buzz, setBuzz] = useSkinState<string[]>(p, "mymyIgBuzz", []),
+    [feed, setFeed] = useSkinState<string[]>(p, "mymyIgFeed", []),
+    [feedAt, setFeedAt] = useSkinState<number>(p, "mymyIgFeedAt", 0),
+    [dmSent, setDmSent] = useSkinState<string[]>(p, "mymyIgDmSent", []),
     [profile, setProfile] = useSkinState<string[]>(p, "mymyIgProfile", []),
     [seen, setSeen] = useSkinState<string[]>(p, "mymySeen", []);
   const [sheet, setSheet] = useState<Item | null>(null),
@@ -362,6 +437,7 @@ export function MymyInstagram(p: SkinProps) {
     [compose, setCompose] = useState(false),
     [photo, setPhoto] = useState(""),
     [editing, setEditing] = useState(false),
+    [dm, setDm] = useState(""),
     [nameDraft, setNameDraft] = useState(""),
     [bioDraft, setBioDraft] = useState(""),
     [avatarDraft, setAvatarDraft] = useState("");
@@ -378,6 +454,71 @@ export function MymyInstagram(p: SkinProps) {
   const profileName = typeof my.name === "string" ? my.name : "",
     profileBio = typeof my.bio === "string" ? my.bio : "",
     profileAvatar = typeof my.avatar === "string" ? my.avatar : "";
+  const buzzList: Buzz[] = buzz.flatMap((raw) => {
+    try {
+      const v: unknown = JSON.parse(raw);
+      if (!v || typeof v !== "object") return [];
+      const o = v as Record<string, unknown>;
+      if (typeof o.id !== "string" || typeof o.likes !== "number") return [];
+      return [
+        {
+          id: o.id,
+          likes: o.likes,
+          comments: Array.isArray(o.comments)
+            ? o.comments.filter((c): c is string => typeof c === "string")
+            : [],
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
+  const buzzFor = (id: string) => buzzList.find((b) => b.id === id);
+  const npcPosts = feed
+    .flatMap((raw, index) => {
+      try {
+        const v: unknown = JSON.parse(raw);
+        if (!v || typeof v !== "object") return [];
+        const o = v as Record<string, unknown>;
+        if (typeof o.author !== "string" || typeof o.body !== "string")
+          return [];
+        return [
+          makeItem({
+            id: "npc-ig-" + index,
+            title: typeof o.author === "string" ? o.author : "",
+            body: o.body,
+            media: typeof o.media === "string" ? o.media : "",
+            time: "",
+            sender: o.author,
+            likes: typeof o.likes === "number" ? o.likes : 0,
+            comments: Array.isArray(o.comments)
+              ? o.comments.filter((c): c is string => typeof c === "string")
+              : [],
+            meta: {
+              local: "true",
+              location: typeof o.ago === "string" ? o.ago : "",
+            },
+          }),
+        ];
+      } catch {
+        return [];
+      }
+    })
+    .reverse();
+  useEffect(() => {
+    if (p.creator) return;
+    const now = Date.now();
+    if (feed.length && now - feedAt < 40000) return;
+    const first = !feed.length;
+    const count = first ? 3 : 1 + Math.round(Math.random());
+    const fresh = Array.from({ length: count }, (_, k) => {
+      const src = IG_NPC_POSTS[(feed.length + k) % IG_NPC_POSTS.length];
+      return JSON.stringify({ ...src, ago: first ? IG_RELATIVE[k] : "刚刚" });
+    });
+    setFeed([...feed, ...fresh]);
+    setFeedAt(now);
+    // 每次打开 App（挂载）时补充一批，模拟“每天都有新动态”
+  }, []);
   const pick = (
     e: React.ChangeEvent<HTMLInputElement>,
     done: (url: string) => void,
@@ -423,12 +564,43 @@ export function MymyInstagram(p: SkinProps) {
       ...p.items.filter(
         (i) => i.folder !== "私信" && i.meta.story !== "true",
       ),
+      ...npcPosts,
     ],
     stories = p.items.filter((i) => i.meta.story === "true"),
     dms = p.items.filter((i) => i.folder === "私信"),
+    dmThreads = [...new Set(dms.map((i) => i.title))],
     active = stories[story - 1];
+  const dmMessages = dm
+    ? [
+        ...dms.filter((i) => i.title === dm),
+        ...dmSent.flatMap((raw, index) => {
+          try {
+            const v: unknown = JSON.parse(raw);
+            if (!Array.isArray(v) || v.length !== 3 || v[0] !== dm) return [];
+            return [
+              makeItem({
+                id: "local-igdm-" + index,
+                title: String(v[0]),
+                body: String(v[1]),
+                time: String(v[2]),
+                sender: profileName || p.owner || "机主",
+                outgoing: true,
+                avatar: profileAvatar,
+                meta: { local: "true" },
+              }),
+            ];
+          } catch {
+            return [];
+          }
+        }),
+      ]
+    : [];
   const toggle = (id: string, values: string[], set: (v: string[]) => void) =>
     set(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
+  const like = (i: Item, on: boolean) => {
+    toggle(i.id, liked, setLiked);
+    if (on) p.onEvent?.("like", i.id);
+  };
   useEffect(() => {
     if (!active) return;
     const t = setTimeout(
@@ -464,27 +636,31 @@ export function MymyInstagram(p: SkinProps) {
           <MoreHorizontal />
         </button>
       </header>
-      <div
-        className="carw"
-        onDoubleClick={() => {
-          if (!liked.includes(i.id)) setLiked([...liked, i.id]);
-          setPop(i.id);
-        }}
-      >
-        <Media item={i} />
-        {pop === i.id && (
-          <Heart
-            className="mymy-heart-pop"
-            fill="white"
-            onAnimationEnd={() => setPop("")}
-          />
-        )}
-      </div>
+      {i.media ? (
+        <div
+          className="carw"
+          onDoubleClick={() => {
+            if (!liked.includes(i.id)) like(i, true);
+            setPop(i.id);
+          }}
+        >
+          <Media item={i} />
+          {pop === i.id && (
+            <Heart
+              className="mymy-heart-pop"
+              fill="white"
+              onAnimationEnd={() => setPop("")}
+            />
+          )}
+        </div>
+      ) : (
+        <p className="igpt">{i.body}</p>
+      )}
       <div className="iga">
         <button
           aria-label={"点赞" + i.title}
           aria-pressed={liked.includes(i.id)}
-          onClick={() => toggle(i.id, liked, setLiked)}
+          onClick={() => like(i, !liked.includes(i.id))}
         >
           <Heart
             fill={liked.includes(i.id) ? "#ff3040" : "none"}
@@ -512,18 +688,26 @@ export function MymyInstagram(p: SkinProps) {
           <Bookmark fill={saved.includes(i.id) ? "currentColor" : "none"} />
         </button>
       </div>
-      <p className="lk2">{i.likes + (liked.includes(i.id) ? 1 : 0)} 次赞</p>
-      <button
-        className="igc"
-        onClick={() => {
-          openPost(i);
-        }}
-      >
-        <b>{i.sender}</b> {i.body}
-      </button>
+      <p className="lk2">
+        {i.likes +
+          (liked.includes(i.id) ? 1 : 0) +
+          (buzzFor(i.id)?.likes ?? 0)}{" "}
+        次赞
+      </p>
+      {i.media && (
+        <button
+          className="igc"
+          onClick={() => {
+            openPost(i);
+          }}
+        >
+          <b>{i.sender}</b> {i.body}
+        </button>
+      )}
       <button className="cmall" onClick={() => setSheet(i)}>
         查看评论{" "}
         {i.comments.length +
+          (buzzFor(i.id)?.comments.length ?? 0) +
           replies.filter((r) => r.startsWith(i.id + "\t")).length}
       </button>
       <p className="igt">{i.time}</p>
@@ -622,16 +806,91 @@ export function MymyInstagram(p: SkinProps) {
           )}
           {!selected && tab === "私信" && (
             <>
-              {dms.map((i) => (
-                <button className="kzkr" key={i.id} onClick={() => openPost(i)}>
-                  <Avatar name={i.sender} src={i.avatar} />
-                  <span className="kzkn">
-                    <b>{i.title}</b>
-                    <small>{i.body}</small>
-                  </span>
-                </button>
-              ))}
-              {!dms.length && <Blank />}
+              {dm ? (
+                <div className="igdm">
+                  <header className="igdmh">
+                    <button
+                      aria-label="返回私信列表"
+                      onClick={() => setDm("")}
+                    >
+                      <ArrowLeft size={20} />
+                    </button>
+                    <Avatar name={dm} src={dms.find((i) => i.title === dm)?.avatar} />
+                    <b>{dm}</b>
+                  </header>
+                  <div className="igdmb">
+                    {dmMessages.map((m) => (
+                      <div
+                        key={m.id}
+                        className={"igdmm " + (m.outgoing ? "me" : "you")}
+                      >
+                        {!m.outgoing && (
+                          <Avatar name={m.sender} src={m.avatar} />
+                        )}
+                        <span className="igdmbub">
+                          {m.media ? <Media item={m} /> : m.body}
+                          <small>{m.time.slice(-5)}</small>
+                        </span>
+                      </div>
+                    ))}
+                    {!dmMessages.length && <Blank />}
+                  </div>
+                  <form
+                    className="igdmi"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (draft.trim()) {
+                        setDmSent([
+                          ...dmSent,
+                          JSON.stringify([
+                            dm,
+                            draft.trim(),
+                            p.virtualTime || "",
+                          ]),
+                        ]);
+                        setDraft("");
+                        p.onEvent?.("send", dm);
+                      }
+                    }}
+                  >
+                    <input
+                      aria-label="私信内容"
+                      value={draft}
+                      maxLength={2000}
+                      placeholder="发消息…"
+                      onChange={(e) => setDraft(e.target.value)}
+                    />
+                    <button aria-label="发送私信" disabled={!draft.trim()}>
+                      发送
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <>
+                  {dmThreads.map((t) => {
+                    const rows = dms.filter((i) => i.title === t),
+                      last = rows.at(-1)!;
+                    return (
+                      <button
+                        className="kzkr"
+                        key={t}
+                        onClick={() => {
+                          setDraft("");
+                          setDm(t);
+                          read(p, last);
+                        }}
+                      >
+                        <Avatar name={last.sender} src={last.avatar} />
+                        <span className="kzkn">
+                          <b>{t}</b>
+                          <small>{last.body}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {!dmThreads.length && <Blank />}
+                </>
+              )}
             </>
           )}
           {!selected && tab === "搜索" && (
@@ -661,6 +920,7 @@ export function MymyInstagram(p: SkinProps) {
               }
               onClick={() => {
                 setSelected(null);
+                setDm("");
                 if (n === 2) {
                   setDraft("");
                   setPhoto("");
@@ -682,7 +942,7 @@ export function MymyInstagram(p: SkinProps) {
             aria-label="关闭发帖"
             onClick={() => setCompose(false)}
           />
-          <section className="kzsh" role="dialog" aria-label="发布帖子">
+          <section className="kzsh" role="dialog" aria-label="新帖子面板">
             <div className="mymy-sheet-handle" />
             <header>
               <b>新帖子</b>
@@ -695,6 +955,13 @@ export function MymyInstagram(p: SkinProps) {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (draft.trim() || photo) {
+                  const id = "local-ig-" + myPosts.length;
+                  const pool = photo ? IG_COMMENT_MEDIA : IG_COMMENT_TEXT;
+                  const who = pickSome(
+                    IG_BUZZ_NAMES,
+                    1 + Math.floor(Math.random() * 3),
+                  );
+                  const texts = pickSome(pool, who.length);
                   setMyPosts([
                     ...myPosts,
                     JSON.stringify({
@@ -703,9 +970,18 @@ export function MymyInstagram(p: SkinProps) {
                       time: p.virtualTime || "",
                     }),
                   ]);
+                  setBuzz([
+                    ...buzz,
+                    JSON.stringify({
+                      id,
+                      likes: 8 + Math.floor(Math.random() * 53),
+                      comments: who.map((name, n) => name + ": " + texts[n]),
+                    }),
+                  ]);
                   setDraft("");
                   setPhoto("");
                   setCompose(false);
+                  setTab("主页");
                 }
               }}
             >
@@ -814,6 +1090,7 @@ export function MymyInstagram(p: SkinProps) {
             </header>
             <div className="mymy-comments">
               {[
+                ...(buzzFor(sheet.id)?.comments ?? []),
                 ...sheet.comments,
                 ...replies
                   .filter((r) => r.startsWith(sheet.id + "\t"))
