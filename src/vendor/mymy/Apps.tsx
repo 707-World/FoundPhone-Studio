@@ -64,9 +64,20 @@ function Back({ onClick }: { onClick: () => void }) {
 export function MymyKakao(p: SkinProps) {
   const [tab, setTab] = useSkinState<string>(p, "mymyTab", "聊天"),
     [sent, setSent] = useSkinState<string[]>(p, "mymyKktSent", []),
+    [aliases, setAliases] = useSkinState<string[]>(p, "mymyKktAliases", []),
     [draft, setDraft] = useState(""),
     [query, setQuery] = useState(""),
+    [aliasDraft, setAliasDraft] = useState(""),
     [menu, setMenu] = useState(false);
+  const aliasFor = (t: string) => {
+    const row = aliases.find((a) => a.split("\t")[0] === t);
+    return row ? row.split("\t").slice(1).join("\t") : "";
+  };
+  const saveAlias = (t: string, name: string) => {
+    const rest = aliases.filter((a) => a.split("\t")[0] !== t);
+    setAliases(name.trim() ? [...rest, t + "\t" + name.trim()] : rest);
+  };
+  const displayName = (t: string) => aliasFor(t) || t;
   const list = grouped(p.items),
     messages = [
       ...p.items.filter((i) => i.title === p.thread),
@@ -107,9 +118,15 @@ export function MymyKakao(p: SkinProps) {
         <>
           <header className="kzth">
             <Back onClick={() => p.onThread("")} />
-            <span className="kzname">{p.thread}</span>
+            <span className="kzname">{displayName(p.thread)}</span>
             <span className="kzpill">
-              <button aria-label="聊天菜单" onClick={() => setMenu(!menu)}>
+              <button
+                aria-label="聊天菜单"
+                onClick={() => {
+                  if (!menu) setAliasDraft(aliasFor(p.thread));
+                  setMenu(!menu);
+                }}
+              >
                 <Menu size={21} />
               </button>
             </span>
@@ -197,10 +214,26 @@ export function MymyKakao(p: SkinProps) {
           </form>
           {menu && (
             <div className="mymy-local-menu">
-              <strong>{p.thread}</strong>
+              <strong>{displayName(p.thread)}</strong>
               <p>
                 群成员：{[...new Set(messages.map((m) => m.sender))].join("、")}
               </p>
+              <label className="mymy-alias">
+                备注名
+                <input
+                  aria-label="修改备注"
+                  value={aliasDraft}
+                  maxLength={30}
+                  placeholder={p.thread}
+                  onChange={(e) => setAliasDraft(e.target.value)}
+                />
+              </label>
+              <button
+                aria-label="保存备注"
+                onClick={() => saveAlias(p.thread, aliasDraft)}
+              >
+                保存备注
+              </button>
               <button onClick={() => setMenu(false)}>完成</button>
             </div>
           )}
@@ -271,7 +304,7 @@ export function MymyKakao(p: SkinProps) {
                   >
                     <Avatar name={last.sender || g.title} src={last.avatar} />
                     <span className="kzkn">
-                      <b>{g.title}</b>
+                      <b>{displayName(g.title)}</b>
                       <small>{tab === "好友" ? last.sender : last.body}</small>
                     </span>
                     <span className="kzkmt">
@@ -318,15 +351,79 @@ export function MymyInstagram(p: SkinProps) {
     [liked, setLiked] = useSkinState<string[]>(p, "mymyLiked", []),
     [saved, setSaved] = useSkinState<string[]>(p, "mymySaved", []),
     [replies, setReplies] = useSkinState<string[]>(p, "mymyReplies", []),
+    [myPosts, setMyPosts] = useSkinState<string[]>(p, "mymyIgPosts", []),
+    [profile, setProfile] = useSkinState<string[]>(p, "mymyIgProfile", []),
     [seen, setSeen] = useSkinState<string[]>(p, "mymySeen", []);
   const [sheet, setSheet] = useState<Item | null>(null),
     [selected, setSelected] = useState<Item | null>(null),
     [story, setStory] = useState(0),
     [draft, setDraft] = useState(""),
-    [pop, setPop] = useState("");
-  const posts = p.items.filter(
-      (i) => i.folder !== "私信" && i.meta.story !== "true",
-    ),
+    [pop, setPop] = useState(""),
+    [compose, setCompose] = useState(false),
+    [photo, setPhoto] = useState(""),
+    [editing, setEditing] = useState(false),
+    [nameDraft, setNameDraft] = useState(""),
+    [bioDraft, setBioDraft] = useState(""),
+    [avatarDraft, setAvatarDraft] = useState("");
+  const my = (() => {
+    try {
+      const raw: unknown = profile.length ? JSON.parse(profile[0]) : {};
+      return raw && typeof raw === "object"
+        ? (raw as Record<string, unknown>)
+        : {};
+    } catch {
+      return {} as Record<string, unknown>;
+    }
+  })();
+  const profileName = typeof my.name === "string" ? my.name : "",
+    profileBio = typeof my.bio === "string" ? my.bio : "",
+    profileAvatar = typeof my.avatar === "string" ? my.avatar : "";
+  const pick = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    done: (url: string) => void,
+  ) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f || f.size > 2 * 1024 * 1024) return;
+    if (!/^image\/(png|jpe?g|webp)$/.test(f.type)) return;
+    const r = new FileReader();
+    r.onload = () => {
+      if (typeof r.result === "string") done(r.result);
+    };
+    r.readAsDataURL(f);
+  };
+  const mine = myPosts.flatMap((raw, index) => {
+    try {
+      const e: unknown = JSON.parse(raw);
+      if (!e || typeof e !== "object") return [];
+      const body = (e as Record<string, unknown>).body,
+        media = (e as Record<string, unknown>).media,
+        time = (e as Record<string, unknown>).time;
+      if (typeof body !== "string") return [];
+      if (typeof media === "string" && media && !media.startsWith("data:"))
+        return [];
+      return [
+        makeItem({
+          id: "local-ig-" + index,
+          title: "我的帖子",
+          body,
+          media: typeof media === "string" ? media : "",
+          time: typeof time === "string" && time ? time : p.virtualTime || "",
+          sender: profileName || p.owner || "机主",
+          avatar: profileAvatar,
+          meta: { local: "true" },
+        }),
+      ];
+    } catch {
+      return [];
+    }
+  });
+  const posts = [
+      ...mine,
+      ...p.items.filter(
+        (i) => i.folder !== "私信" && i.meta.story !== "true",
+      ),
+    ],
     stories = p.items.filter((i) => i.meta.story === "true"),
     dms = p.items.filter((i) => i.folder === "私信"),
     active = stories[story - 1];
@@ -476,7 +573,10 @@ export function MymyInstagram(p: SkinProps) {
           {!selected && tab === "个人主页" && (
             <>
               <div className="pf">
-                <Avatar name={p.owner || "机主"} />
+                <Avatar
+                  name={profileName || p.owner || "机主"}
+                  src={profileAvatar}
+                />
                 <div className="ps">
                   <div>
                     <b>{posts.length}</b>
@@ -492,7 +592,20 @@ export function MymyInstagram(p: SkinProps) {
                   </div>
                 </div>
               </div>
-              <p className="pn">{p.owner}</p>
+              <p className="pn">{profileName || p.owner}</p>
+              {profileBio && <p className="pb">{profileBio}</p>}
+              <button
+                className="mymy-edit-profile"
+                aria-label="编辑个人资料"
+                onClick={() => {
+                  setNameDraft(profileName);
+                  setBioDraft(profileBio);
+                  setAvatarDraft(profileAvatar);
+                  setEditing(true);
+                }}
+              >
+                编辑资料
+              </button>
               <div className="ptab">
                 <div className="on">
                   <Grid />
@@ -537,16 +650,24 @@ export function MymyInstagram(p: SkinProps) {
           )}
         </div>
         <nav className="mymy-ig-nav">
-          {[Home, Search, Send, User].map((Icon, n) => (
+          {[Home, Search, Plus, Send, User].map((Icon, n) => (
             <button
               key={n}
-              aria-label={["主页", "搜索", "私信", "个人主页"][n]}
+              aria-label={["主页", "搜索", "发帖", "私信", "个人主页"][n]}
               aria-pressed={
-                !selected && tab === ["主页", "搜索", "私信", "个人主页"][n]
+                !selected &&
+                n !== 2 &&
+                tab === ["主页", "搜索", "", "私信", "个人主页"][n]
               }
               onClick={() => {
                 setSelected(null);
-                setTab(["主页", "搜索", "私信", "个人主页"][n]);
+                if (n === 2) {
+                  setDraft("");
+                  setPhoto("");
+                  setCompose(true);
+                  return;
+                }
+                setTab(["主页", "搜索", "", "私信", "个人主页"][n]);
               }}
             >
               <Icon />
@@ -554,6 +675,128 @@ export function MymyInstagram(p: SkinProps) {
           ))}
         </nav>
       </div>
+      {compose && (
+        <div className="kzcs">
+          <button
+            className="kzbk"
+            aria-label="关闭发帖"
+            onClick={() => setCompose(false)}
+          />
+          <section className="kzsh" role="dialog" aria-label="发布帖子">
+            <div className="mymy-sheet-handle" />
+            <header>
+              <b>新帖子</b>
+              <button aria-label="关闭发帖面板" onClick={() => setCompose(false)}>
+                <X />
+              </button>
+            </header>
+            <form
+              className="mymy-compose"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (draft.trim() || photo) {
+                  setMyPosts([
+                    ...myPosts,
+                    JSON.stringify({
+                      body: draft.trim(),
+                      media: photo,
+                      time: p.virtualTime || "",
+                    }),
+                  ]);
+                  setDraft("");
+                  setPhoto("");
+                  setCompose(false);
+                }
+              }}
+            >
+              {photo && <img className="mymy-compose-photo" src={photo} alt="待发布图片" />}
+              <textarea
+                aria-label="帖子正文"
+                value={draft}
+                maxLength={2000}
+                placeholder="分享此刻…"
+                onChange={(e) => setDraft(e.target.value)}
+              />
+              <label className="mymy-compose-pick">
+                添加图片
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  aria-label="选择帖子图片"
+                  onChange={(e) => pick(e, setPhoto)}
+                />
+              </label>
+              <button aria-label="发布帖子" disabled={!draft.trim() && !photo}>
+                发布
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+      {editing && (
+        <div className="kzcs">
+          <button
+            className="kzbk"
+            aria-label="关闭资料编辑"
+            onClick={() => setEditing(false)}
+          />
+          <section className="kzsh" role="dialog" aria-label="编辑个人资料">
+            <div className="mymy-sheet-handle" />
+            <header>
+              <b>编辑资料</b>
+              <button aria-label="关闭资料面板" onClick={() => setEditing(false)}>
+                <X />
+              </button>
+            </header>
+            <form
+              className="mymy-compose"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setProfile([
+                  JSON.stringify({
+                    name: nameDraft.trim(),
+                    bio: bioDraft.trim(),
+                    avatar: avatarDraft,
+                  }),
+                ]);
+                setEditing(false);
+              }}
+            >
+              <Avatar name={nameDraft || p.owner || "机主"} src={avatarDraft} />
+              <label className="mymy-alias">
+                名字
+                <input
+                  aria-label="编辑主页名字"
+                  value={nameDraft}
+                  maxLength={30}
+                  placeholder={p.owner || "机主"}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                />
+              </label>
+              <label className="mymy-alias">
+                简介
+                <input
+                  aria-label="编辑主页简介"
+                  value={bioDraft}
+                  maxLength={150}
+                  placeholder="介绍一下自己"
+                  onChange={(e) => setBioDraft(e.target.value)}
+                />
+              </label>
+              <label className="mymy-compose-pick">
+                更换头像
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  aria-label="选择头像图片"
+                  onChange={(e) => pick(e, setAvatarDraft)}
+                />
+              </label>
+              <button aria-label="保存个人资料">保存</button>
+            </form>
+          </section>
+        </div>
+      )}
       {sheet && (
         <div className="kzcs">
           <button

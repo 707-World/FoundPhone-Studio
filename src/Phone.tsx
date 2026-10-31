@@ -310,6 +310,9 @@ function PhoneRuntime({
       ),
     });
   if (!ready) return <div className="phone-loading">正在恢复进度…</div>;
+  const customWallpaper = work.phone.wallpaper.startsWith("data:")
+    ? work.phone.wallpaper
+    : "";
   return (
     <div
       ref={shell}
@@ -318,7 +321,16 @@ function PhoneRuntime({
     >
       <KeyboardContext.Provider value={setKeyboard}>
         <div
-          className={`phone-screen wallpaper-${work.phone.wallpaper} ${locked ? "is-locked" : ""} ${app ? "in-app" : ""} ${keyboard ? "keyboard-open" : ""}`}
+          className={`phone-screen ${customWallpaper ? "wallpaper-custom" : `wallpaper-${work.phone.wallpaper}`} ${locked ? "is-locked" : ""} ${app ? "in-app" : ""} ${keyboard ? "keyboard-open" : ""}`}
+          style={
+            customWallpaper
+              ? ({
+                  backgroundImage: `url(${customWallpaper})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                } as CSSProperties)
+              : undefined
+          }
           data-app={app}
           onDragStart={(e) => e.preventDefault()}
           onPointerDown={(e) => {

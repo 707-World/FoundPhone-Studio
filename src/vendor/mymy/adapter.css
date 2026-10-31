@@ -628,3 +628,73 @@
   width: 25px;
   height: 25px;
 }
+
+/* Player-side compose & profile editing */
+.mymy-alias {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.mymy-alias input {
+  padding: 8px 10px;
+  border: 1px solid #d0d0d5;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.mymy-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 16px;
+}
+.mymy-compose textarea {
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid #d0d0d5;
+  border-radius: 10px;
+  font-size: 14px;
+  resize: vertical;
+}
+.mymy-compose-photo {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.mymy-compose-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #0a84ff;
+  cursor: pointer;
+}
+.mymy-compose-pick input[type="file"] {
+  display: none;
+}
+.mymy-compose > button,
+.mymy-edit-profile {
+  padding: 9px 14px;
+  border: none;
+  border-radius: 10px;
+  background: #0a84ff;
+  color: #fff;
+  font-size: 14px;
+}
+.mymy-compose > button:disabled {
+  opacity: 0.4;
+}
+.mymy-edit-profile {
+  margin: 8px 16px 0;
+  width: calc(100% - 32px);
+  background: #efeff2;
+  color: #111;
+}
+.mymy-instagram .pb {
+  margin: 2px 16px 0;
+  font-size: 13px;
+  color: #444;
+  white-space: pre-wrap;
+}

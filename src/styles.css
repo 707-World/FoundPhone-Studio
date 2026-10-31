@@ -751,6 +751,12 @@ svg {
     #b7bfa9
   );
 }
+.wallpaper-custom {
+  background-color: #000;
+}
+.wallpaper-custom .wallpaper-orb {
+  display: none;
+}
 .wallpaper-orb {
   position: absolute;
   pointer-events: none;
