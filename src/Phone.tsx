@@ -395,9 +395,7 @@ function PhoneRuntime({
       ),
     });
   if (!ready) return <div className="phone-loading">正在恢复进度…</div>;
-  const customWallpaper = work.phone.wallpaper.startsWith("data:")
-    ? work.phone.wallpaper
-    : "";
+  const customWallpaper = safeMedia(work.phone.wallpaper);
   return (
     <div
       ref={shell}

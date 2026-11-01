@@ -231,12 +231,24 @@ export function makeItem(partial: Partial<Item> = {}): Item {
 export function validateWork(input: unknown): Work {
   return workSchema.parse(input);
 }
+/** 内嵌的 base64 资源（原来的唯一形式） */
+const INLINE_MEDIA =
+  /^data:(image\/(png|jpeg|webp|gif)|audio\/(mpeg|mp3|wav|ogg|webm|mp4)|video\/(mp4|webm));base64,[a-zA-Z0-9+/=\s]+$/;
+/** 作品自带的独立文件：media/wallpaper.png、audio/ring.mp3 */
+const MEDIA_FILE =
+  /^(?!\/)(?!.*\/\/)(?!.*\.\.)(?!.*:)[A-Za-z0-9._\-/]+\.(png|jpe?g|webp|gif|mp3|wav|ogg|m4a|webm|mp4)$/i;
+
 export function safeMedia(value: string) {
-  return /^data:(image\/(png|jpeg|webp|gif)|audio\/(mpeg|mp3|wav|ogg|webm|mp4)|video\/(mp4|webm));base64,[a-zA-Z0-9+/=\s]+$/.test(
-    value,
-  )
-    ? value
-    : "";
+  // 两种合法来源：内嵌 base64，或作品目录里的相对路径文件。
+  // 外链（http://、//host/...）、任何带协议头的写法一律不放行。
+  return INLINE_MEDIA.test(value) || MEDIA_FILE.test(value) ? value : "";
+}
+/** 这条 media 是不是图片（内嵌的，或以图片扩展名结尾的文件） */
+export function isImageMedia(value: string) {
+  const v = safeMedia(value);
+  return v === ""
+    ? false
+    : v.startsWith("data:image/") || /\.(png|jpe?g|webp|gif)$/i.test(v);
 }
 
 /**

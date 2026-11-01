@@ -9,7 +9,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { SkinProps } from "../AppSkins";
-import { safeMedia, type Item } from "../schema";
+import { isImageMedia, safeMedia, type Item } from "../schema";
 export type Props = SkinProps;
 export const meta = (
   i: Pick<Item, "meta"> | undefined,
@@ -96,7 +96,7 @@ export function Avatar({
 }) {
   return (
     <span className={`catalog-avatar ${round ? "round" : ""}`}>
-      {safeMedia(src)?.startsWith("data:image/") ? (
+      {isImageMedia(src) ? (
         <img src={safeMedia(src)} alt="" />
       ) : (
         name.slice(0, 1) || "人"

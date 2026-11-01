@@ -31,7 +31,14 @@ import {
   Layers,
   ShoppingBag,
 } from "lucide-react";
-import { clockOf, safeMedia, type Item, type Runtime, type UiValue } from "./schema";
+import {
+  clockOf,
+  isImageMedia,
+  safeMedia,
+  type Item,
+  type Runtime,
+  type UiValue,
+} from "./schema";
 export type SkinProps = {
   ui?: Record<string, UiValue>;
   onUi?: (key: string, value: UiValue) => void;
@@ -67,7 +74,7 @@ function Avatar({
 }) {
   return (
     <span className={`skin-avatar ${round ? "round" : ""}`}>
-      {safeMedia(src)?.startsWith("data:image/") ? (
+      {isImageMedia(src) ? (
         <img src={safeMedia(src)} alt="" />
       ) : (
         name.slice(0, 1)

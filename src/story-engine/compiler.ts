@@ -111,11 +111,14 @@ export function compileStory(raw: unknown): { story: Story; work: Work } {
   const fail = (p: string, m: string): never => {
     throw new StoryIssue(p, m);
   };
+  // 壁纸也可以是主题名（sage 之类），只对「看起来像资源」的写法做安全校验
+  const wallpaper = s.phone.wallpaper ?? "";
   if (
-    s.phone.wallpaper?.startsWith("data:") &&
-    !safeMedia(s.phone.wallpaper)
+    (wallpaper.startsWith("data:") ||
+      /\.(png|jpe?g|webp|gif)$/i.test(wallpaper)) &&
+    !safeMedia(wallpaper)
   )
-    fail("phone.wallpaper", "壁纸仅支持受信任的内嵌图片");
+    fail("phone.wallpaper", "壁纸仅支持内嵌图片或作品自带的图片文件");
   const names = new Set<string>();
   const unique = (v: string, p: string) => {
     if (names.has(v)) fail(p, "重复 ID: " + v);

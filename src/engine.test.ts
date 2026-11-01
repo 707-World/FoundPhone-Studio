@@ -7,7 +7,12 @@ import {
   visible,
   validateGraph,
 } from "./engine";
-import { initialRuntime, validateWork, safeMedia } from "./schema";
+import {
+  initialRuntime,
+  isImageMedia,
+  safeMedia,
+  validateWork,
+} from "./schema";
 import { parseChat, parseCsv } from "./chat";
 import { registry } from "./registry";
 describe("story progression", () => {
@@ -90,6 +95,18 @@ describe("import and schema safety", () => {
     expect(safeMedia("data:image/svg+xml;base64,PHN2Zz4=")).toBe("");
     expect(safeMedia("https://example.com/image.png")).toBe("");
     expect(safeMedia("data:image/png;base64,YQ==")).not.toBe("");
+  });
+  it("accepts same-site media files but never off-site ones", () => {
+    expect(safeMedia("media/wallpaper.png")).toBe("media/wallpaper.png");
+    expect(safeMedia("audio/ring.mp3")).toBe("audio/ring.mp3");
+    // 跨域 / 越权写法一律拒绝
+    expect(safeMedia("//evil.example.com/a.png")).toBe("");
+    expect(safeMedia("http://evil.example.com/a.png")).toBe("");
+    expect(safeMedia("../secret.png")).toBe("");
+    expect(safeMedia("/etc/passwd.png")).toBe("");
+    expect(safeMedia("media/evil.svg")).toBe("");
+    expect(isImageMedia("media/wallpaper.png")).toBe(true);
+    expect(isImageMedia("audio/ring.mp3")).toBe(false);
   });
   it("parses script and explains invalid lines", () => {
     const r = parseChat(
