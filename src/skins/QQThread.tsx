@@ -11,6 +11,7 @@ import {
   Video,
 } from "lucide-react";
 import { NativeComposer } from "../DeviceSystem";
+import { clockOf } from "../schema";
 import { Avatar, Media, meta, type Props } from "./shared";
 import "./qq-detail.css";
 export function QQThread(p: Props) {
@@ -44,8 +45,8 @@ export function QQThread(p: Props) {
           return (
             <div key={i.id}>
               {(n === 0 ||
-                i.time.slice(-5) !== messages[n - 1].time.slice(-5)) && (
-                <time className="qq-message-time">{i.time.slice(-5)}</time>
+                clockOf(i.time) !== clockOf(messages[n - 1].time)) && (
+                <time className="qq-message-time">{clockOf(i.time)}</time>
               )}
               <div
                 className={

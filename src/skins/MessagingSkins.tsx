@@ -13,7 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import type { Item } from "../schema";
+import { clockOf, type Item } from "../schema";
 import {
   Add,
   Avatar,
@@ -51,7 +51,7 @@ function Bubbles({
               i.body
             )}
             <small>
-              {i.time.slice(-5)}
+              {clockOf(i.time)}
               {i.read && <CheckCheck size={10} />}
             </small>
           </button>
@@ -99,7 +99,7 @@ function ChatRows({
               <strong>{name}</strong>
               <p>{last.body}</p>
             </span>
-            <time>{last.time.slice(-5)}</time>
+            <time>{clockOf(last.time)}</time>
           </button>
         );
       })}
@@ -193,7 +193,7 @@ export function QQSkin(p: Props) {
                       <Avatar name={i.sender} src={i.avatar} />
                       <strong>{i.sender}</strong>
                       <p>{i.body}</p>
-                      {i.media && <Media item={i} />}
+                      {i.media && <Media item={i} zoom />}
                       <small>{i.time}</small>
                     </button>
                   ))}
@@ -357,9 +357,9 @@ export function DiscordSkin(p: Props) {
                     <Avatar name={i.sender} />
                     <div>
                       <strong>{i.sender}</strong>
-                      <time>{i.time.slice(-5)}</time>
+                      <time>{clockOf(i.time)}</time>
                       <p>{i.body}</p>
-                      {i.media && <Media item={i} />}
+                      {i.media && <Media item={i} zoom />}
                     </div>
                   </button>
                 ))}

@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { getApp, type AppPlugin } from "./registry";
 import {
+  clockOf,
   initialRuntime,
   safeMedia,
   type Work,
@@ -198,7 +199,7 @@ function PhoneRuntime({
     setOwn(next);
     onRuntime?.(next);
   };
-  /** 设置里的「重新开始」：清空存档，回到锁屏，故事从头再来 */
+  /** 设置里的「重启」：清空存档，回到锁屏，故事从头再来 */
   const restart = () => {
     setApp("");
     setFolder("");
@@ -265,6 +266,55 @@ function PhoneRuntime({
   const event = (event: string, target: string) => {
     if (!creator) update(dispatch(work, runtimeRef.current, event, target));
   };
+  /**
+   * 被接管之后，手机只认相册。
+   * 玩家点回主页、点别的 App，都会被这只手拽回相册 —— 他不想让你走。
+   */
+  const heldInPhotos = (s.forcedOff ?? []).includes("home");
+  useEffect(() => {
+    if (heldInPhotos && app !== "photos") setApp("photos");
+  }, [heldInPhotos, app]);
+  /** 来电：一边震动一边响铃，24 秒不接他就挂断重拨 */
+  const ringRef = useRef<HTMLAudioElement | null>(null);
+  const ringing = s.incomingCall?.status === "ringing";
+  const ringKey = s.incomingCall?.target ?? "";
+  useEffect(() => {
+    if (!ringing || creator) return;
+    const buzz = () =>
+      typeof navigator !== "undefined" &&
+      typeof navigator.vibrate === "function" &&
+      navigator.vibrate([900, 350, 900, 350]);
+    buzz();
+    const shake = setInterval(buzz, 3300);
+    void ringRef.current?.play().catch(() => undefined);
+    return () => {
+      clearInterval(shake);
+      if (typeof navigator !== "undefined" && navigator.vibrate)
+        navigator.vibrate(0);
+      ringRef.current?.pause();
+    };
+  }, [ringing, ringKey, creator]);
+  useEffect(() => {
+    if (!ringing || creator) return;
+    // 二十四秒不接也不挂：他自己挂掉，然后再打一遍
+    const timer = setTimeout(() => {
+      const call = runtimeRef.current.incomingCall;
+      if (!call || call.status !== "ringing") return;
+      update(
+        dispatch(
+          work,
+          {
+            ...runtimeRef.current,
+            incomingCall: null,
+            callLog: [...(runtimeRef.current.callLog ?? []), "decline"],
+          },
+          "callDeclined",
+          call.target || call.caller,
+        ),
+      );
+    }, 24000);
+    return () => clearTimeout(timer);
+  }, [ringing, ringKey, creator]);
   const captureApp = () => {
     if (!app) return;
     const current = shell.current?.querySelector<HTMLElement>(".app-screen");
@@ -354,7 +404,18 @@ function PhoneRuntime({
       style={{ "--phone-scale": deviceScale } as CSSProperties}
       className={`phone-shell ios18 ${work.phone.theme === "dark" ? "dark-phone" : ""} ${s.screenOff ? "screen-off" : ""}`}
     >
-      {s.screenOff && <div className="phone-blackout" aria-label="屏幕已黑" />}
+      {s.screenOff && (
+        <div
+          className="phone-blackout"
+          aria-label="屏幕已黑"
+          role={s.endings.length ? "button" : undefined}
+          title={s.endings.length ? "轻触屏幕重新开始" : undefined}
+          onClick={() => {
+            // 黑屏之后轻触一下，故事从头再来一遍
+            if (s.endings.length) restart();
+          }}
+        />
+      )}
       <KeyboardContext.Provider value={setKeyboard}>
         <div
           className={`phone-screen ${customWallpaper ? "wallpaper-custom" : `wallpaper-${work.phone.wallpaper}`} ${locked ? "is-locked" : ""} ${app ? "in-app" : ""} ${keyboard ? "keyboard-open" : ""}`}
@@ -659,12 +720,20 @@ function PhoneRuntime({
                   setLocked(true);
                 }}
               >
-                重新开始
+                重启
               </button>
             </div>
           )}
           {!creator && s.incomingCall && (
             <div className="incoming-call-screen">
+              {s.incomingCall.status === "ringing" && (
+                <audio
+                  ref={ringRef}
+                  src={`${import.meta.env.BASE_URL}audio/ring.mp3`}
+                  loop
+                  preload="auto"
+                />
+              )}
               <small>
                 {s.incomingCall.status === "ringing" ? "来电" : "通话中"} ·
                 作品内模拟
@@ -1171,7 +1240,7 @@ function AppContent({
                     i.body
                   )}
                   <small>
-                    {i.time.slice(-5)} {i.read ? "✓✓" : ""}
+                    {clockOf(i.time)} {i.read ? "✓✓" : ""}
                   </small>
                   {creator && (i.hidden || i.unlock) && (
                     <LockKeyhole size={12} />
@@ -1223,7 +1292,7 @@ function AppContent({
                     <strong>{t}</strong>
                     <p>{last.body}</p>
                   </span>
-                  <small>{last.time.slice(-5)}</small>
+                  <small>{clockOf(last.time)}</small>
                 </button>
               );
             })

@@ -7,6 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { SkinProps } from "../AppSkins";
 import { safeMedia, type Item } from "../schema";
 export type Props = SkinProps;
@@ -106,15 +107,24 @@ export function Avatar({
 export function Media({
   item,
   className = "",
+  zoom = false,
 }: {
   item: Item;
   className?: string;
+  /** 允许点开看大图：联系人发来的照片都用这个 */
+  zoom?: boolean;
 }) {
   const src = safeMedia(item.media);
-  return src ? (
-    item.kind === "audio" ? (
-      <audio className={className} controls src={src} />
-    ) : item.kind === "video" ? (
+  const [big, setBig] = useState(false);
+  if (!src)
+    return (
+      <div className={`catalog-art ${className}`}>
+        <span>{item.title}</span>
+      </div>
+    );
+  if (item.kind === "audio") return <audio className={className} controls src={src} />;
+  if (item.kind === "video")
+    return (
       <video
         className={className}
         controls
@@ -122,13 +132,40 @@ export function Media({
         src={src}
         onClick={(e) => e.stopPropagation()}
       />
-    ) : (
-      <img className={className} loading="lazy" alt={item.title} src={src} />
-    )
-  ) : (
-    <div className={`catalog-art ${className}`}>
-      <span>{item.title}</span>
-    </div>
+    );
+  return (
+    <>
+      <img
+        className={className + (zoom ? " media-zoomable" : "")}
+        loading="lazy"
+        alt={item.title}
+        src={src}
+        onClick={
+          zoom
+            ? (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setBig(true);
+              }
+            : undefined
+        }
+      />
+      {big &&
+        createPortal(
+          <div
+            className="media-lightbox"
+            role="dialog"
+            aria-label="查看大图"
+            onClick={() => setBig(false)}
+          >
+            <img src={src} alt={item.title} />
+            <button aria-label="关闭大图" onClick={() => setBig(false)}>
+              ×
+            </button>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 export function Row({

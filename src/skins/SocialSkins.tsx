@@ -329,8 +329,12 @@ export function FacebookSkin(p: Props) {
 export function RedbookSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "发现");
   const [open, setOpen] = useState<Item | null>(null);
-  const list =
-    tab === "收藏"
+  // 搜什么就只显示什么：搜人名什么都搜不到，搜学校才翻得出那一片帖子
+  const hit = (i: (typeof items)[number], word: string) =>
+    (i.title + "\n" + i.body + "\n" + (i.meta?.keyword ?? "")).includes(word);
+  const list = q.trim()
+    ? items.filter((i) => hit(i, q.trim()))
+    : tab === "收藏"
       ? items.filter((i) => i.favorite)
       : tab === "关注"
         ? items.filter((i) => i.folder === "关注")

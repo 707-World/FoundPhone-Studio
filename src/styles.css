@@ -4925,7 +4925,7 @@ label {
   transform: rotate(135deg);
 }
 
-/* 结局：屏幕黑掉，什么都点不动 */
+/* 结局：屏幕黑掉。轻触一下就能从头再来一遍 */
 .phone-blackout {
   position: absolute;
   inset: 6px;
@@ -4934,6 +4934,71 @@ label {
   z-index: 400;
   animation: blackout 2.4s ease forwards;
   pointer-events: all;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 62px;
+}
+.phone-blackout::after {
+  content: "轻触屏幕 重新开始";
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  animation: blackout-hint 2.6s ease-in-out infinite;
+}
+@keyframes blackout-hint {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+/* 点开看大图 */
+.media-zoomable {
+  cursor: zoom-in;
+}
+.media-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.93);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: lightbox-in 0.18s ease;
+  cursor: zoom-out;
+}
+.media-lightbox img {
+  max-width: 92vw;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.media-lightbox button {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes blackout {
   0% {

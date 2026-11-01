@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import type { SkinProps } from "../AppSkins";
 import { Avatar, Media } from "./shared";
-import { makeItem, type Item } from "../schema";
+import { clockOf, makeItem, type Item } from "../schema";
 import { useSkinState } from "../skinState";
 import "./threads-reference.css";
 export function ThreadsReference(p: SkinProps) {
@@ -80,7 +80,7 @@ export function ThreadsReference(p: SkinProps) {
       <div className="tr-post-content">
         <div className="tr-byline">
           <b>{i.sender}</b>
-          <span>{i.time.slice(-5)}</span>
+          <span>{clockOf(i.time)}</span>
           <button
             aria-label="帖子选项"
             onClick={() => {
@@ -291,7 +291,7 @@ export function ThreadsReference(p: SkinProps) {
                     <span>
                       <b>{i.sender}</b>
                       <small>
-                        {i.body} · {i.time.slice(-5)}
+                        {i.body} · {clockOf(i.time)}
                       </small>
                     </span>
                     {i.favorite && <Pin size={16} />}
@@ -315,7 +315,7 @@ export function ThreadsReference(p: SkinProps) {
                       <Avatar name={i.sender} src={i.avatar} />
                       <div>
                         <b>{i.sender}</b>
-                        <small>{i.time.slice(-5)}</small>
+                        <small>{clockOf(i.time)}</small>
                         <p>{i.body}</p>
                         <div className="tr-actions">
                           <Heart />

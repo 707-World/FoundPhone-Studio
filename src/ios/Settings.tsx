@@ -45,6 +45,8 @@ const groups: Row[][] = [
     [Moon, "专注模式", "#5856d6"],
     [Shield, "面容 ID 与密码", "#34c759"],
   ],
+  // 最后一栏单独放「重启」：玩家随时能把故事从头再来一遍
+  [[RotateCcw, "重启", "#ff3b30"]],
 ];
 export function NativeSettings({
   work,
@@ -231,10 +233,15 @@ export function NativeSettings({
                       role={name === "飞行模式" ? undefined : "button"}
                       tabIndex={name === "飞行模式" ? undefined : 0}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") nav.push(name);
+                        if (e.key !== "Enter") return;
+                        if (name === "重启") setConfirm(true);
+                        else nav.push(name);
                       }}
                       onClick={() => {
-                        if (name !== "飞行模式") nav.push(name);
+                        if (name === "飞行模式") return;
+                        // 「重启」不跳页面，直接弹确认框
+                        if (name === "重启") setConfirm(true);
+                        else nav.push(name);
                       }}
                     >
                       <span
@@ -244,7 +251,12 @@ export function NativeSettings({
                         <Icon size={21} />
                       </span>
                       <span>{name}</span>
-                      {name === "飞行模式" ? (
+                      {name === "重启" ? (
+                        <>
+                          <small>从头开始</small>
+                          <ChevronRight size={16} />
+                        </>
+                      ) : name === "飞行模式" ? (
                         <IOSToggle
                           label="飞行模式"
                           checked={airplane}
@@ -274,27 +286,6 @@ export function NativeSettings({
                   ))}
               </div>
             ))}
-            {!query && onRestart && (
-              <div className="settings-group">
-                <div
-                  className="settings-native-row"
-                  role="button"
-                  tabIndex={0}
-                  aria-label="重新开始"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") setConfirm(true);
-                  }}
-                  onClick={() => setConfirm(true)}
-                >
-                  <span className="settings-glyph" style={{ background: "#ff3b30" }}>
-                    <RotateCcw size={21} />
-                  </span>
-                  <span>重新开始</span>
-                  <small>清除进度</small>
-                  <ChevronRight size={16} />
-                </div>
-              </div>
-            )}
           </>
         )}
         {items
@@ -315,9 +306,9 @@ export function NativeSettings({
         )}
       </NavigationPage>
       {confirm && (
-        <div className="settings-restart-mask" role="dialog" aria-label="确认重新开始">
+        <div className="settings-restart-mask" role="dialog" aria-label="确认重启">
           <div className="settings-restart-box">
-            <strong>重新开始？</strong>
+            <strong>重启？</strong>
             <p>当前进度、备注与已发内容都会被清除，故事将从锁屏重新开始。</p>
             <div>
               <button
@@ -333,7 +324,7 @@ export function NativeSettings({
                   onRestart?.();
                 }}
               >
-                重新开始
+                重启
               </button>
             </div>
           </div>

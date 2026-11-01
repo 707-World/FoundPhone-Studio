@@ -28,7 +28,7 @@ import {
 import type { SkinProps } from "../../AppSkins";
 import { Avatar, Media } from "../../skins/shared";
 import { useSkinState } from "../../skinState";
-import { makeItem, type Item } from "../../schema";
+import { clockOf, makeItem, type Item } from "../../schema";
 import { testCondition, visible } from "../../engine";
 import {
   IG_BUZZ_NAMES,
@@ -288,7 +288,7 @@ export function MymyKakao(p: SkinProps) {
                       <span className="kzt">
                         {m.meta.unread || ""}
                         <br />
-                        {m.time.slice(-5)}
+                        {clockOf(m.time)}
                       </span>
                     )}
                     <button
@@ -307,7 +307,7 @@ export function MymyKakao(p: SkinProps) {
                       }}
                     >
                       {m.media ? (
-                        <Media item={m} />
+                        <Media item={m} zoom />
                       ) : m.meta.map === "true" ? (
                         <span className="kzmap-body">
                           <strong>📍 {m.body}</strong>
@@ -319,7 +319,7 @@ export function MymyKakao(p: SkinProps) {
                       )}
                     </button>
                     {!m.outgoing && run.last && (
-                      <span className="kzt">{m.time.slice(-5)}</span>
+                      <span className="kzt">{clockOf(m.time)}</span>
                     )}
                   </div>
                 </Fragment>
@@ -528,7 +528,7 @@ export function MymyKakao(p: SkinProps) {
                       <small>{tab === "好友" ? last.sender : last.body}</small>
                     </span>
                     <span className="kzkmt">
-                      {last.time.slice(-5)}
+                      {clockOf(last.time)}
                       {last.meta.unread && (
                         <i className="kzkbd">{last.meta.unread}</i>
                       )}
@@ -731,17 +731,32 @@ export function MymyInstagram(p: SkinProps) {
   }, [juyeonCommented, juyeonCmt.length, lastMine]);
   const extraComments = (i: Item) =>
     juyeonCmt.includes(i.id) ? ["Juyeon: 我刚还在想你😺"] : [];
+  /**
+   * 主页时间线：玩家刚发的帖子永远排在最上面（最新发的那条第一），
+   * 往下是“刚刚 / 几分钟前”的日常动态，最后才是按时间倒序排的旧帖子。
+   */
   const posts = [
-      ...mine,
-      ...p.items.filter(
-        (i) => i.folder !== "私信" && i.meta.story !== "true",
-      ),
+      ...mine.slice().reverse(),
       ...npcPosts,
+      ...p.items
+        .filter((i) => i.folder !== "私信" && i.meta.story !== "true")
+        .slice()
+        .sort(
+          (a, b) =>
+            Date.parse(b.time.replace(" ", "T")) -
+            Date.parse(a.time.replace(" ", "T")),
+        ),
     ],
     stories = p.items.filter((i) => i.meta.story === "true"),
     dms = p.items.filter((i) => i.folder === "私信"),
     dmThreads = [...new Set(dms.map((i) => i.title))],
     active = stories[story - 1];
+  /** 私信排序用的时间键：只写了时刻的补上手机当天，排序才不会乱 */
+  const dmDay = p.state?.date || p.items[0]?.time.slice(0, 10) || "";
+  const dmStamp = (t: string) =>
+    /^\d{4}-\d{2}-\d{2}/.test(t) ? t : (dmDay + " " + t).trim();
+  /** 私信内容区：进会话就自动翻到最新一条，不用玩家自己往下拖 */
+  const dmScroll = useRef<HTMLDivElement>(null);
   const dmMessages = dm
     ? [
         ...dms.filter((i) => i.title === dm),
@@ -765,8 +780,19 @@ export function MymyInstagram(p: SkinProps) {
             return [];
           }
         }),
-      ]
+      ].sort((a, b) => {
+        // 一律按时间先后排：新消息永远在下面，滚动条也才钓得住底
+        const x = dmStamp(a.time),
+          y = dmStamp(b.time);
+        if (x !== y) return x < y ? -1 : 1;
+        return a.meta.local === "true" ? 1 : b.meta.local === "true" ? -1 : 0;
+      })
     : [];
+  useEffect(() => {
+    const node = dmScroll.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [dm, dmMessages.length]);
   /** 这条私信会话里还没被玩家点出来的剧情台词数量 */
   const dmPending = dm
     ? pendingLines(p, (i) => i.folder === "私信" && i.title === dm)
@@ -1000,7 +1026,7 @@ export function MymyInstagram(p: SkinProps) {
                     <Avatar name={dm} src={dms.find((i) => i.title === dm)?.avatar} />
                     <b>{dm}</b>
                   </header>
-                  <div className="igdmb">
+                  <div className="igdmb" ref={dmScroll}>
                     {dmMessages.map((m) => (
                       <div
                         key={m.id}
@@ -1016,12 +1042,12 @@ export function MymyInstagram(p: SkinProps) {
                               aria-label={"查看图片" + m.title}
                               onClick={() => setSelected(m)}
                             >
-                              <Media item={m} />
+                              <Media item={m} zoom />
                             </button>
                           ) : (
                             m.body
                           )}
-                          <small>{m.time.slice(-5)}</small>
+                          <small>{clockOf(m.time)}</small>
                         </span>
                       </div>
                     ))}
@@ -1441,7 +1467,7 @@ export function MymyX(p: SkinProps) {
                   <div className="kzxn">
                     <b>{i.sender}</b>
                     <small>
-                      @{i.meta.handle || "user"} · {i.time.slice(-5)}
+                      @{i.meta.handle || "user"} · {clockOf(i.time)}
                     </small>
                     <em>
                       <MoreHorizontal size={18} />

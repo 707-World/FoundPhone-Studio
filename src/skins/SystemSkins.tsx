@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { download } from "../io";
-import { safeMedia, type Item } from "../schema";
+import { clockOf, safeMedia, type Item } from "../schema";
 import {
   Add,
   Avatar,
@@ -470,7 +470,7 @@ export function CalendarSkin(p: Props) {
             key={i.id}
             onClick={() => p.onItem(i)}
           >
-            <time>{i.time.slice(-5)}</time>
+            <time>{clockOf(i.time)}</time>
             <div>
               <strong>{i.title}</strong>
               <p>{meta(i, "location", i.body)}</p>
@@ -572,7 +572,7 @@ export function ClockSkin(p: Props) {
           items.map((i) => (
             <div className="alarm-row" key={i.id}>
               <button onClick={() => p.onItem(i)}>
-                <time>{meta(i, "clock", i.time.slice(-5))}</time>
+                <time>{meta(i, "clock", clockOf(i.time))}</time>
                 <small>
                   {tab === "世界时钟" ? meta(i, "city", i.title) : i.title}
                 </small>

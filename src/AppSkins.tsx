@@ -31,7 +31,7 @@ import {
   Layers,
   ShoppingBag,
 } from "lucide-react";
-import { safeMedia, type Item, type Runtime, type UiValue } from "./schema";
+import { clockOf, safeMedia, type Item, type Runtime, type UiValue } from "./schema";
 export type SkinProps = {
   ui?: Record<string, UiValue>;
   onUi?: (key: string, value: UiValue) => void;
@@ -130,7 +130,7 @@ function MessageList({
               i.body
             )}
             <small className={whatsapp ? undefined : "wx-message-time"}>
-              {i.time.slice(-5)}{" "}
+              {clockOf(i.time)}{" "}
               {whatsapp && i.outgoing && <CheckCheck size={11} />}
             </small>
           </button>
@@ -370,7 +370,7 @@ export function WeChatSkin(p: SkinProps) {
                         <strong>{t}</strong>
                         <p>{last.body}</p>
                       </div>
-                      <time>{last.time.slice(-5)}</time>
+                      <time>{clockOf(last.time)}</time>
                     </button>
                   );
                 })}
@@ -633,7 +633,7 @@ export function WhatsAppSkin(p: SkinProps) {
                           {last.body}
                         </p>
                       </div>
-                      <time>{last.time.slice(-5)}</time>
+                      <time>{clockOf(last.time)}</time>
                     </button>
                   );
                 })}

@@ -273,6 +273,22 @@ export function dispatch(
         (n.event === event && (!n.target || n.target === target)),
     )
     .map((n) => n.id);
+  if (event === "search") {
+    // 搜的是“含有某个关键词”，不是一模一样的一句话：
+    // 搜「首尔艺高 好吃」也要命中只写了「首尔艺高」的那批帖子。
+    const cut = target.indexOf(":");
+    const app = cut > 0 ? target.slice(0, cut) : "";
+    const word = cut > 0 ? target.slice(cut + 1) : target;
+    ids = w.nodes
+      .filter((n) => {
+        if (n.event !== "search") return false;
+        const c = (n.target || "").indexOf(":");
+        if (c < 0 || !app) return true;
+        if (n.target.slice(0, c) !== app) return false;
+        return word.includes(n.target.slice(c + 1));
+      })
+      .map((n) => n.id);
+  }
   if (event === "tap") {
     // 一次点击只推进一句：从尚未完成的节点里挑最早的一个。
     // 这里必须连条件一起判断 —— 否则上一句「对方的话」还在打字时玩家抢先一点，

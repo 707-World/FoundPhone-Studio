@@ -221,3 +221,15 @@ export function safeMedia(value: string) {
     ? value
     : "";
 }
+
+/**
+ * 聊天里显示的时刻：只取「时:分」。
+ * 台词时间精确到秒（用来保证剧本顺序），直接 slice(-5) 会把 14:52:20 截成 52:20。
+ */
+export function clockOf(time: string): string {
+  const m = /(\d{1,2}):(\d{2})(?::\d{2})?\s*$/.exec(time || "");
+  if (!m) return time || "";
+  const h = Math.min(23, Math.max(0, Number(m[1])));
+  const mm = Math.min(59, Math.max(0, Number(m[2])));
+  return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
