@@ -1026,6 +1026,22 @@ function AppContent({
   const [unlocks, setUnlocks] = useState<string[]>([]);
   const [pwError, setPwError] = useState("");
   const [likes, setLikes] = useState<string[]>([]);
+  /** 剧本点了名的照片：进相册就直接摊开它，不是让玩家自己翻 */
+  /** 剧本点名要摊开的那一张：state.open 里除了应用名以外的那条内容 id */
+  const forcedShot =
+    Object.keys(state.open ?? {}).find((k) => k !== "home" && k !== "photos") ??
+    "";
+  useEffect(() => {
+    if (!forcedShot || creator) return;
+    // 只要他还按着这部手机，这张照片就一直摊在那儿，退出去了也会被拉回来
+    const target = items.find((i) => i.id === forcedShot);
+    if (!target) return;
+    const hold = () => {
+      if (visible(target, state)) setDetail(target);
+      else setTimeout(hold, 400);
+    };
+    hold();
+  }, [forcedShot, items, state]);
   const shown = items
     .filter((i) => creator || visible(i, state))
     .filter((i) =>
@@ -1157,7 +1173,15 @@ function AppContent({
             />
           ) : nativeDetailApps.has(app.id) &&
             (!detail.password || unlocks.includes(detail.id)) ? (
-            <NativeDetail app={app.id} item={detail} back={back} />
+            <NativeDetail
+              app={app.id}
+              item={detail}
+              back={back}
+              locked={app.id === "photos" && detail.id === forcedShot}
+              folderBack={
+                app.id === "photos" ? () => setDetail(null) : undefined
+              }
+            />
           ) : (
             <>
               <div className="app-nav">

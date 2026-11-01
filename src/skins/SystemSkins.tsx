@@ -773,7 +773,16 @@ export function MusicSkin(p: Props) {
       {song && (
         <div className="native-now-playing">
           <button onClick={() => p.onItem(song)}>
-            <Music size={20} />
+            {safeMedia(song.meta.cover ?? "") ? (
+              // 有的歌带着自己的封面 —— 那张耳机照片就挂在这一首上
+              <img
+                className="now-cover"
+                src={safeMedia(song.meta.cover)}
+                alt={song.title}
+              />
+            ) : (
+              <Music size={20} />
+            )}
             {song.title}
           </button>
           {song.kind === "audio" && safeMedia(song.media) ? (

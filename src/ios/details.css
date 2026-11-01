@@ -94,6 +94,15 @@
   place-items: center;
   color: white;
 }
+/* 接管之后：只剩这一张照片，顶栏空着，退不回去 */
+.ios18 .native-detail-photos .photo-only-nav strong {
+  color: #8e8e93;
+  font-size: 13px;
+  font-weight: 500;
+}
+.ios18 .native-detail-photos .photo-only-nav > span {
+  width: 24px;
+}
 .ios18 .native-photo-stage > img {
   width: 100%;
   max-height: 100%;

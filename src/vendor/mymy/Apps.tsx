@@ -751,6 +751,26 @@ export function MymyInstagram(p: SkinProps) {
     dms = p.items.filter((i) => i.folder === "私信"),
     dmThreads = [...new Set(dms.map((i) => i.title))],
     active = stories[story - 1];
+  /**
+   * 私信里对方主动发来的话：一句一句往前走。
+   * 台词早就按时间排好了，但要让它们真的“一条接一条地来”，
+   * 得有人在屏幕上推一把 —— 私信页开着就自动走，关着就等下次进来再接着走。
+   * （靠定时器推进的话，没打开私信时段落就卡住了，玩家一进来那句就凭空出现。）
+   */
+  useEffect(() => {
+    if (p.creator || tab !== "私信") return;
+    const due = dms.find(
+      (i) =>
+        !visible(i, p.state) &&
+        testCondition({ key: i.unlock, op: "eq", value: true }, p.state) &&
+        !i.outgoing &&
+        i.sender !== "我" &&
+        i.meta.local !== "true",
+    );
+    if (!due) return;
+    const timer = setTimeout(() => p.onEvent?.("tap", "ig:" + due.title), 900);
+    return () => clearTimeout(timer);
+  }, [tab, p.state, dms, p.creator]);
   /** 私信排序用的时间键：只写了时刻的补上手机当天，排序才不会乱 */
   const dmDay = p.state?.date || p.items[0]?.time.slice(0, 10) || "";
   const dmStamp = (t: string) =>

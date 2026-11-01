@@ -77,6 +77,12 @@ function apply(a: Action, s: Runtime, w: Work) {
         s.forcedOff.push(String(a.value || a.key));
       if (a.key === "screen") s.screenOff = true;
       break;
+    case "open":
+      // 反过来：他替玩家把某个东西点开了（相册里那张照片）。
+      // key 就是那条内容的 id —— 记成 open[内容id] = true
+      s.open ??= {};
+      s.open[String(a.value || a.key)] = "true";
+      break;
     case "clue":
       if (!s.clues.includes(a.key)) s.clues.push(a.key);
       break;

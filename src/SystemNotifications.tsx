@@ -4,6 +4,10 @@ import { X } from "lucide-react";
 import { AppArtwork } from "./AppArtwork";
 import type { Work } from "./schema";
 export function notificationContent(text: string, apps: Work["apps"]) {
+  // 来电走的是自己的格式「李柱延 来电」：它没有冒号，别被当成普通信息
+  const call = /^(.*?)\s*来电$/.exec(text.trim());
+  if (call)
+    return { title: call[1] || "来电", body: "来电", appId: "phone" };
   const separator = text.search(/[:：]/);
   const sender = separator > 0 ? text.slice(0, separator) : "信息";
   const app = apps.find((a) => a.name === sender);

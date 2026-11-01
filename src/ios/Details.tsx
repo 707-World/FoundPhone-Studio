@@ -27,10 +27,16 @@ export function NativeDetail({
   app,
   item,
   back,
+  locked = false,
+  folderBack,
 }: {
   app: string;
   item: Item;
   back: () => void;
+  /** 剧情接管之后：只留这一张，退不回相册目录 */
+  locked?: boolean;
+  /** 从相簿里点进来的，返回时回相簿 */
+  folderBack?: () => void;
 }) {
   const [favorite, setFavorite] = useState(item.favorite),
     [copied, setCopied] = useState(false),
@@ -60,16 +66,27 @@ export function NativeDetail({
   };
   return (
     <div className={"native-detail native-detail-" + app}>
-      <header className="app-nav">
-        <button aria-label="返回" onClick={back}>
-          <ChevronLeft size={24} />
-          {name}
-        </button>
-        <strong>{app === "photos" ? item.time.slice(0, 10) : ""}</strong>
-        <button aria-label="更多操作" onClick={() => setCopied(!copied)}>
-          <MoreHorizontal size={23} />
-        </button>
-      </header>
+      {locked ? (
+        <header className="app-nav photo-only-nav">
+          <span />
+          <strong>{item.time.slice(0, 10)}</strong>
+          <span />
+        </header>
+      ) : (
+        <header className="app-nav">
+          <button
+            aria-label="返回"
+            onClick={folderBack ?? back}
+          >
+            <ChevronLeft size={24} />
+            {name}
+          </button>
+          <strong>{app === "photos" ? item.time.slice(0, 10) : ""}</strong>
+          <button aria-label="更多操作" onClick={() => setCopied(!copied)}>
+            <MoreHorizontal size={23} />
+          </button>
+        </header>
+      )}
       {copied && (
         <div className="native-action-sheet">
           <button onClick={copy}>

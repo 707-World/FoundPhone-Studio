@@ -4194,3 +4194,16 @@
 .catalog-slot[hidden] {
   display: none;
 }
+/* 歌曲封面：那张耳机照片就挂在这一首上 */
+.native-now-playing .now-cover {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex: none;
+}
+.native-now-playing button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}

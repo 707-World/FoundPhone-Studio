@@ -5,7 +5,19 @@ export const itemSchema = z.object({
   title: z.string().max(1000),
   body: z.string().max(200000),
   richText: z.string().max(400000).default(""),
-  meta: z.record(z.string().max(60), z.string().max(2000)).default({}),
+  meta: z
+    .record(
+      z.string().max(60),
+      // 作者填的普通属性值仍然收得很紧；带 data: 的图片/音频（头像、封面）
+      // 本身就是 base64，另给额度 —— 它们要走 safeMedia 那道校验。
+      z
+        .string()
+        .max(400000)
+        .refine((v) => v.startsWith("data:") || v.length <= 2000, {
+          message: "属性值过长",
+        }),
+    )
+    .default({}),
   time: z.string(),
   sender: z.string(),
   avatar: z.string().default(""),
@@ -63,6 +75,8 @@ export const actionSchema = z.object({
     "line",
     /** 关掉某个应用（删不掉的联系人、卸载后照样收到消息都在这里体现） */
     "forceOff",
+    /** 反过来：替他把这个东西点开（相册里那张照片） */
+    "open",
   ]),
   key: z.string(),
   value: z.union([z.string(), z.number(), z.boolean()]),
@@ -154,6 +168,8 @@ export type Runtime = {
   callLog?: ("answer" | "decline")[];
   /** 被强制关掉的内容：删除好友 / 卸载应用都在这 */
   forcedOff?: string[];
+  /** 被强制打开的内容：他替玩家点开的那一张照片、那一段对话 */
+  open?: Record<string, string>;
   /** 结局定格：blackScreen 之后整个屏幕黑掉 */
   screenOff?: boolean;
   ui?: Record<string, Record<string, UiValue>>;
@@ -182,6 +198,7 @@ export function initialRuntime(w: Work): Runtime {
     incomingCall: null,
     callLog: [],
     forcedOff: [],
+    open: {},
     screenOff: false,
     ui: {},
     workId: w.id,
